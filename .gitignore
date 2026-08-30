@@ -1,0 +1,55 @@
+# IDEs
+.idea/
+.rider/
+.vs/
+*.sln.iml
+.vscode/
+
+# Build results
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+bin/
+obj/
+
+# Generated files
+*.AssemblyInfo.cs
+*.AssemblyInfoInputs.cache
+*.assets.cache
+*.csproj.nuget.dgspec.json
+*.csproj.nuget.g.props
+*.csproj.nuget.g.targets
+*.GeneratedMSBuildEditorConfig.editorconfig
+*.GlobalUsings.g.cs
+*.NETCoreApp*.AssemblyAttributes.cs
+
+# NuGet
+project.assets.json
+project.nuget.cache
+project.packagespec.json
+*.nuget.cache
+rider.project.model.nuget.info
+rider.project.restore.info
+
+# Configuration
+appsettings.Development.json
+appsettings.*.json
+
+# Editor config and project files
+encodings.xml
+vcs.xml
+indexLayout.xml
+.editorconfig
+
+# Project metadata
+PROJECT_SPEC.md
+
+# Runtime
+*.log
+*.swp
+*.swo
+*~
+.DS_Store
