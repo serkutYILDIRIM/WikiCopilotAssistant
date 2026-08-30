@@ -1,0 +1,15 @@
+﻿@model ErrorViewModel
+@inject IViewLocalizer Localizer
+@{
+    ViewData["Title"] = Localizer["PageTitle"].Value;
+}
+
+<h1 class="text-danger">@Localizer["ErrorTitle"]</h1>
+<p>@Localizer["ErrorMessage"]</p>
+
+@if (Model.ShowRequestId)
+{
+    <p>
+        <strong>@Localizer["RequestIdLabel"]:</strong> <code>@Model.RequestId</code>
+    </p>
+}

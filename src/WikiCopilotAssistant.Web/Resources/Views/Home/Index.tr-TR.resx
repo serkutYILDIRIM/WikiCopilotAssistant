@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="PageTitle" xml:space="preserve">
+    <value>Ana Sayfa</value>
+  </data>
+  <data name="ProductDescription" xml:space="preserve">
+    <value>WikiCopilotAssistant, teknik wiki ve dokümantasyon sayfalarında saatlerce arama yapmanıza gerek kalmadan sorularınıza kaynak bölümlere dayalı Türkçe cevaplar sunar. Bir dokümantasyon adresi gönderin, sayfa güvenle indekslensin ve sorunuzu sorun.</value>
+  </data>
+  <data name="WikiUrlLabel" xml:space="preserve">
+    <value>Wiki veya dokümantasyon adresi</value>
+  </data>
+  <data name="WikiUrlPlaceholder" xml:space="preserve">
+    <value>https://ornek.com/dokumantasyon</value>
+  </data>
+  <data name="IndexButton" xml:space="preserve">
+    <value>İndeksle</value>
+  </data>
+  <data name="IndexingComingSoon" xml:space="preserve">
+    <value>İndeksleme özelliği sonraki aşamada eklenecektir. Bu form şu anda yalnızca bir önizlemedir.</value>
+  </data>
+</root>

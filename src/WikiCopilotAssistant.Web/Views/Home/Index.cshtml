@@ -1,0 +1,28 @@
+﻿@inject IViewLocalizer Localizer
+@{
+    ViewData["Title"] = Localizer["PageTitle"].Value;
+}
+
+<div class="text-center">
+    <h1 class="display-5">WikiCopilotAssistant</h1>
+    <p class="lead col-lg-8 mx-auto">@Localizer["ProductDescription"]</p>
+</div>
+
+<div class="row justify-content-center mt-4">
+    <div class="col-md-8 col-lg-6">
+        <div class="card">
+            <div class="card-body">
+                <form>
+                    <fieldset disabled>
+                        <div class="mb-3">
+                            <label for="wikiUrl" class="form-label">@Localizer["WikiUrlLabel"]</label>
+                            <input type="url" class="form-control" id="wikiUrl" name="wikiUrl" placeholder="@Localizer["WikiUrlPlaceholder"]" />
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">@Localizer["IndexButton"]</button>
+                    </fieldset>
+                </form>
+                <p class="form-text text-muted mt-3 mb-0">@Localizer["IndexingComingSoon"]</p>
+            </div>
+        </div>
+    </div>
+</div>
