@@ -38,6 +38,14 @@ rider.project.restore.info
 appsettings.Development.json
 appsettings.*.json
 
+# Local credentials and Copilot session data
+.env
+.env.*
+.copilot/
+*.pfx
+*.p12
+*.key
+
 # Editor config and project files
 encodings.xml
 vcs.xml
