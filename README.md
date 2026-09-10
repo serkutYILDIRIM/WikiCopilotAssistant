@@ -6,10 +6,14 @@ separated sources, model commentary, and suggested next steps.
 
 ## Current status
 
-The first technical integration step is complete: Copilot connectivity,
-agent-selected source reading, and isolated browser rendering were exercised
-on real public sources. The web entry point is still the original placeholder,
-not a working chatbot. MVC screens and the login-help popup are the next step.
+The technical integration and MVC foundation steps are complete. The local web
+page now shows Copilot connection status, a terminal-login help popup, a validated
+source/question form, and a temporary conversation draft.
+
+**The web form does not start research or generate an answer yet.** It explicitly
+labels the current development stage. Agent research from the web UI, cross-site
+approval controls, verified answer sections, and follow-up chat are subsequent
+steps. The separate manual research command already exercises the source reader.
 
 The `--check-copilot` command checks the runtime version, authentication
 availability, and available model count. It does not send a model prompt,
@@ -66,10 +70,12 @@ If the `copilot` command is missing, consult the
 and explicitly approve/install it yourself. The application does not install
 or update the CLI automatically.
 
-The planned web interface will include a dismissible **How to connect to
-Copilot** information popup with these steps and a **Check connection again**
-button. This popup is not implemented yet; use the command below at the
-current connectivity stage.
+The web interface includes a dismissible **Copilot'a nasıl bağlanırım?**
+information popup with these steps and a **Bağlantıyı yeniden kontrol et**
+button. No password, token or verification-code input is present.
+The page opens the help when authentication is reported missing; help also
+remains available from the header. Checking again queries the runtime rather
+than assuming login succeeded, recreating an unavailable runtime when necessary.
 
 ## Build without downloading
 
@@ -128,6 +134,35 @@ choosing to do so. If a compatible CLI still cannot see an existing login,
 repeat the check in the terminal where you signed in. Any required login is
 performed by the user through that CLI, never by supplying credentials to
 this application. Do not share raw authentication output or credential files.
+
+## Open the local web interface
+
+After the approved dependency setup and a successful build:
+
+```powershell
+dotnet run --project WikiCopilotAssistant --no-build --no-restore --launch-profile http
+```
+
+Open `http://localhost:5242`. This command uses the existing build and does not
+restore packages or download a browser/runtime.
+
+- Wait for the Copilot connection status, or use the terminal-login help.
+- Enter a public source URL and question, then choose **Sohbeti hazırla**.
+- Review the temporary draft. No model prompt is sent by this form yet.
+- Use **Yeni sohbet** to clear it. Changing the source prompts before replacing
+  the old draft in the browser.
+
+Only loopback HTTP(S) listening addresses are accepted. Foreign Host/Origin
+requests and cross-site browser requests are rejected. State-changing requests
+require an antiforgery token; session/antiforgery cookies are HttpOnly and
+SameSite Strict. Draft state and data-protection keys are in memory, not a
+database or project file. Drafts expire after 30 minutes without session
+activity or when the app restarts. Shared browser tabs share a session draft;
+separate sessions do not share drafts.
+
+The background Copilot client checks startup readiness without asking a model
+question. Expected connection failures are shown as safe messages, without
+account identifiers or raw CLI errors. Terminal login remains entirely yours.
 
 ## Manual live web check
 
@@ -204,6 +239,12 @@ These were manual checks against the application, not unit tests:
 | Existing Edge | React and a JavaScript-generated public page rendered in verified temporary profiles and closed successfully. |
 | Source access controls | File/loopback URLs, private DNS destinations, and redirects to private or unapproved hosts rejected. |
 | Cancellation | Short operation deadlines stopped ordinary and browser source reads without publishing success. |
+| MVC draft form | Valid input prepared a RAM-only draft; empty questions and invalid/private source URLs returned validation errors. |
+| Login help | Popup opened/closed, including Escape with focus return; no credential fields; real connection refresh succeeded. |
+| Missing CLI | A separate instance with an invalid CLI path reported unavailable and rejected draft submission; the real login was not modified. |
+| Web request controls | Missing antiforgery token, foreign Origin and foreign Host were rejected. |
+| Draft isolation | Independent sessions did not share drafts; New conversation and application restart cleared the draft. |
+| Safe rendering | Script-like question text stayed text, with no injected script element. The 390-pixel mobile layout had no horizontal overflow. |
 
 These results establish the initial integration, not universal website support
 or a complete security certification. Login/paywall/CAPTCHA content is not
