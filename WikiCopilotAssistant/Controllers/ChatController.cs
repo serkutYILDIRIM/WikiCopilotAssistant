@@ -44,14 +44,21 @@ public sealed class ChatController(CopilotConnectionService connection, Conversa
             return View("~/Views/Home/Index.cshtml", model);
         }
 
-        conversations.Save(new ConversationDraft(Guid.NewGuid(), source!.AbsoluteUri, model.Question));
+        if (!conversations.Save(new ConversationDraft(Guid.NewGuid(), source!.AbsoluteUri, model.Question)))
+        {
+            model.Connection = connection.Status;
+            model.Draft = conversations.Get();
+            ModelState.AddModelError("", "Önce etkin araştırmayı durdurun ve temizliğin tamamlanmasını bekleyin.");
+            Response.StatusCode = StatusCodes.Status409Conflict;
+            return View("~/Views/Home/Index.cshtml", model);
+        }
         return RedirectToAction("Index", "Home");
     }
 
     [HttpPost("/chat/reset")]
-    public IActionResult Reset()
+    public async Task<IActionResult> Reset()
     {
-        conversations.Reset();
+        await conversations.ResetAsync();
         return RedirectToAction("Index", "Home");
     }
 }
