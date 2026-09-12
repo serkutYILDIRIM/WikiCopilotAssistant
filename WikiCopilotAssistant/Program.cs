@@ -74,6 +74,8 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ConversationStore>();
 builder.Services.AddSingleton<CopilotConnectionService>();
 builder.Services.AddHostedService(provider => provider.GetRequiredService<CopilotConnectionService>());
+builder.Services.AddSingleton<ResearchService>();
+builder.Services.AddHostedService(provider => provider.GetRequiredService<ResearchService>());
 var app = builder.Build();
 
 app.Use(async (context, next) =>
