@@ -1,5 +1,4 @@
 using System.Text.Json;
-using GitHub.Copilot;
 
 namespace WikiCopilotAssistant.Services;
 
@@ -19,15 +18,7 @@ internal static class CopilotConnectionCheck
         var workingDirectory = Directory.CreateTempSubdirectory("wiki-copilot-connection-");
         try
         {
-            await using var client = new CopilotClient(new CopilotClientOptions
-            {
-                Connection = RuntimeConnection.ForStdio(
-                    path: cliPath,
-                    args: cliPath is null ? null : ["--no-auto-update"]),
-                WorkingDirectory = workingDirectory.FullName,
-                UseLoggedInUser = true,
-                EnableRemoteSessions = false
-            });
+            await using var client = CopilotRuntime.CreateClient(workingDirectory.FullName);
             Console.WriteLine(cliPath is null ? "Runtime source: bundled" : "Runtime source: configured local CLI");
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
             await client.StartAsync(timeout.Token);
