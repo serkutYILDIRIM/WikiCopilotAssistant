@@ -6,14 +6,14 @@ separated sources, model commentary, and suggested next steps.
 
 ## Current status
 
-The technical integration and MVC foundation steps are complete. The local web
-page now shows Copilot connection status, a terminal-login help popup, a validated
-source/question form, and a temporary conversation draft.
+The web research step connects the MVC source/question form to actual Copilot
+research. It includes progress polling, exact-host approval, Stop, and source
+cards populated only from successfully read documents.
 
-**The web form does not start research or generate an answer yet.** It explicitly
-labels the current development stage. Agent research from the web UI, cross-site
-approval controls, verified answer sections, and follow-up chat are subsequent
-steps. The separate manual research command already exercises the source reader.
+**The displayed model answer is an unverified draft, not a citation-validated
+answer.** It is rendered as plain text; model-written URLs do not become source
+cards. Claim/quotation validation and contextual follow-up chat remain subsequent
+steps. Each new start currently creates a separate research operation.
 
 The `--check-copilot` command checks the runtime version, authentication
 availability, and available model count. It does not send a model prompt,
@@ -147,18 +147,68 @@ Open `http://localhost:5242`. This command uses the existing build and does not
 restore packages or download a browser/runtime.
 
 - Wait for the Copilot connection status, or use the terminal-login help.
-- Enter a public source URL and question, then choose **Sohbeti hazırla**.
-- Review the temporary draft. No model prompt is sent by this form yet.
-- Use **Yeni sohbet** to clear it. Changing the source prompts before replacing
-  the old draft in the browser.
+- Enter a public source URL and question, then choose **Araştırmayı başlat**.
+  This sends a real prompt to Copilot and consumes your account's allowance.
+- Watch the progress and successfully read source cards. If another hostname
+  is needed, explicitly allow or deny it before the page is opened.
+- Use **Durdur** to cancel. Wait for cleanup before starting another operation.
+  Closing or reloading the page is not a Stop command.
+- Use **Yeni sohbet** to cancel and clear the current operation. Changing the
+  source prompts before replacing the old operation in the browser.
+- A completed answer is explicitly marked as not yet citation-validated.
+  The source cards are actual read results; search snippets alone are not
+  presented as verified page content.
 
 Only loopback HTTP(S) listening addresses are accepted. Foreign Host/Origin
 requests and cross-site browser requests are rejected. State-changing requests
 require an antiforgery token; session/antiforgery cookies are HttpOnly and
 SameSite Strict. Draft state and data-protection keys are in memory, not a
 database or project file. Drafts expire after 30 minutes without session
-activity or when the app restarts. Shared browser tabs share a session draft;
-separate sessions do not share drafts.
+activity or when the app restarts. Shared browser tabs share a session and
+its active research; separate sessions cannot control each other's operations.
+No fixed research-call cap is applied; finite research, read and approval
+timeouts still apply.
+
+### Research controls and limits
+
+- One active operation per browser session, including cleanup. A second start
+  returns HTTP 409 instead of launching another agent.
+- Another hostname or subdomain pauses `read_source` until the corresponding
+  on-screen decision is submitted. Approval is scoped to the current operation;
+  a new start never inherits approvals. Rejected or expired decisions cannot
+  be replayed, and prompts cannot approve a host.
+- Stop immediately freezes publication, cancels pending decisions, requests
+  SDK abort, and drains running readers before releasing the runtime lease.
+  Previously captured source cards remain available. A stale operation ID
+  cannot stop or approve a newer operation.
+- The runtime connection is leased during research. Connection refresh cannot
+  replace an actively used client. App shutdown cleans research before the
+  connection service.
+- Research is kept in RAM. Completed snapshots expire after the configured
+  retention interval; drafts with no research expire after inactivity. Reset
+  waits for cleanup before clearing state. Restart removes all in-app state.
+- Safety/display limits remain distinct from a research-call cap: source cards
+  retain up to 128 documents with 500-character previews, a model draft displays
+  up to 32,000 characters, and an operation records up to 128 host decisions.
+  Reaching these limits is disclosed in the status/output; no automatic
+  research-call count limit has been introduced.
+
+Optional configuration uses the existing .NET configuration system:
+
+| Environment variable | Default | Accepted range |
+|---|---:|---:|
+| `Research__TimeoutSeconds` | 300 | 1–3600 |
+| `Research__ApprovalTimeoutSeconds` | 60 | 1–300 |
+| `Research__RetentionMinutes` | 30 | 1–120 |
+| `Research__CleanupTimeoutSeconds` | 15 | 1–60 |
+
+Do not place credentials in these settings. Defaults require no extra
+configuration. Read transport/browser safety deadlines may be shorter than
+the overall research deadline.
+
+The polling API is session-owned: `GET /research/status`; antiforgery-protected
+`POST /research/start`, `/research/stop`, `/research/approve` and `/chat/reset`.
+The browser presents safe failures rather than raw SDK exceptions or account data.
 
 The background Copilot client checks startup readiness without asking a model
 question. Expected connection failures are shown as safe messages, without
@@ -245,6 +295,15 @@ These were manual checks against the application, not unit tests:
 | Web request controls | Missing antiforgery token, foreign Origin and foreign Host were rejected. |
 | Draft isolation | Independent sessions did not share drafts; New conversation and application restart cleared the draft. |
 | Safe rendering | Script-like question text stayed text, with no injected script element. The 390-pixel mobile layout had no horizontal overflow. |
+| Live web research | A real form request started native search and source reading, survived page reload, and produced an explicitly unverified draft with actual React source cards. |
+| Stack Overflow web form | The final web build completed native search plus API reading and displayed 11 real question/answer source cards with author/license metadata and a Turkish draft. |
+| Single active operation | Concurrent start returned 409; connection refresh during the active lease remained safe. |
+| External host approval | A requested external page was not in source cards before approval; approving example.com enabled an actual read. A separate MDN subdomain required its own decision. |
+| Approval rejection/expiry | Rejected subdomain content produced no source card. A real two-second approval deadline rejected a delayed allow request with 409 and did not grant the host. |
+| Stop and stale events | Browser Stop and stop during a pending approval prevented answer publication. Replayed approvals/stops returned 409; reset and replacement IDs stayed isolated. |
+| Owner isolation | A different session saw idle and could neither stop nor approve the browser's operation. |
+| Research timeout | A separate two-second deadline instance became timed_out, finished cleanup, and published no answer; no production defaults were changed. |
+| Research result rendering | The final 390-pixel layout had no horizontal overflow; model text created no script elements or clickable model-generated links. |
 
 These results establish the initial integration, not universal website support
 or a complete security certification. Login/paywall/CAPTCHA content is not
