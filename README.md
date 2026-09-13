@@ -10,10 +10,15 @@ The web research step connects the MVC source/question form to actual Copilot
 research. It includes progress polling, exact-host approval, Stop, and source
 cards populated only from successfully read documents.
 
-**The displayed model answer is an unverified draft, not a citation-validated
-answer.** It is rendered as plain text; model-written URLs do not become source
-cards. Claim/quotation validation and contextual follow-up chat remain subsequent
-steps. Each new start currently creates a separate research operation.
+Answers are separated into source-backed statements, Copilot commentary, and
+suggested steps. Source-backed statements require IDs assigned by the server
+and short quotations matching the text actually read. URLs, titles, attribution,
+and external-source labels come from the server's evidence registry, not from
+model-generated links.
+
+**Reference/quotation checks are not a guarantee of semantic truth.** A matching
+quote does not prove that the model interpreted it correctly. Contextual follow-up
+chat remains a subsequent step; each start still creates a separate operation.
 
 The `--check-copilot` command checks the runtime version, authentication
 availability, and available model count. It does not send a model prompt,
@@ -155,9 +160,9 @@ restore packages or download a browser/runtime.
   Closing or reloading the page is not a Stop command.
 - Use **Yeni sohbet** to cancel and clear the current operation. Changing the
   source prompts before replacing the old operation in the browser.
-- A completed answer is explicitly marked as not yet citation-validated.
-  The source cards are actual read results; search snippets alone are not
-  presented as verified page content.
+- A completed answer shows source statements with expandable matching quotations,
+  a separately labeled Copilot interpretation, and suggestions labeled by their
+  source support. Search snippets alone cannot support a source statement.
 
 Only loopback HTTP(S) listening addresses are accepted. Foreign Host/Origin
 requests and cross-site browser requests are rejected. State-changing requests
@@ -188,10 +193,11 @@ timeouts still apply.
   retention interval; drafts with no research expire after inactivity. Reset
   waits for cleanup before clearing state. Restart removes all in-app state.
 - Safety/display limits remain distinct from a research-call cap: source cards
-  retain up to 128 documents with 500-character previews, a model draft displays
-  up to 32,000 characters, and an operation records up to 128 host decisions.
-  Reaching these limits is disclosed in the status/output; no automatic
-  research-call count limit has been introduced.
+  retain up to 128 document versions with 500-character previews; full captured
+  evidence is bounded to 4 Mi characters per operation. An operation records
+  up to 128 host decisions. Structured model JSON and individual answer sections
+  also have finite size limits. Reaching a source-memory limit is disclosed and
+  the omitted document cannot be cited; no research-call count limit is imposed.
 
 Optional configuration uses the existing .NET configuration system:
 
@@ -209,6 +215,44 @@ the overall research deadline.
 The polling API is session-owned: `GET /research/status`; antiforgery-protected
 `POST /research/start`, `/research/stop`, `/research/approve` and `/chat/reset`.
 The browser presents safe failures rather than raw SDK exceptions or account data.
+
+### How answer checking works
+
+1. `read_source` records the successfully read source body in RAM and returns
+   its immutable source ID to Copilot. Reading the same URL with changed content
+   produces a new evidence version; earlier quotes are not checked against an
+   overwritten document. Failed reads and search snippets receive no evidence ID.
+2. Copilot returns a structured JSON answer. Every source-backed statement
+   requires at least one short quotation with an existing source ID. Suggestions
+   without citations are explicitly model suggestions.
+3. The validator checks the shape, IDs, safe source links, and quotation matches
+   against captured full text (not just the 500-character UI preview). Whitespace
+   differences may be normalized; words and casing may not be invented.
+4. If the response fails, at most one correction is requested. New source tools
+   are disabled during that correction and the original research deadline still
+   applies. An answer that remains invalid is not published. Actual source cards
+   remain available, including when the model fails.
+5. With no read evidence, only explicitly labeled model commentary/suggestions
+   can be displayed. The UI states that no source-backed facts are available.
+
+Only the server creates clickable citations. Model-authored URLs are not accepted
+in answer prose; citations and related-page references must point to registry IDs.
+Approved external sites are marked separately from the starting site's sources.
+Source access approval, stop/reset isolation and safe text rendering still apply
+during answer validation.
+
+The manual validator command fetches one public source and reads answer JSON
+from standard input. It does not access local files or call a model:
+
+```powershell
+$json | dotnet WikiCopilotAssistant\bin\Debug\net10.0\WikiCopilotAssistant.dll --validate-answer https://example.com
+```
+
+`$json` must use the same answer contract as the research tool: `sourceFacts`,
+`commentary`, `suggestedSteps`, `uncertainties`, and `similarSources` arrays.
+IDs start at `S1` for the documents returned by that source read. Errors report
+validation categories, never the raw JSON content. This is a manual application
+diagnostic, not a unit-test project.
 
 The background Copilot client checks startup readiness without asking a model
 question. Expected connection failures are shown as safe messages, without
