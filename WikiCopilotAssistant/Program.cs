@@ -3,6 +3,19 @@ using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 using WikiCopilotAssistant.Services;
 
+var validateIndex = Array.IndexOf(args, "--validate-answer");
+if (validateIndex >= 0)
+{
+    if (validateIndex + 1 >= args.Length)
+    {
+        Console.Error.WriteLine("--validate-answer requires a public source URL; pipe answer JSON through stdin.");
+        Environment.ExitCode = 1;
+        return;
+    }
+    Environment.ExitCode = await AnswerValidationCommand.RunAsync(args[validateIndex + 1]);
+    return;
+}
+
 var sourceIndex = Array.IndexOf(args, "--read-source");
 if (sourceIndex >= 0)
 {
