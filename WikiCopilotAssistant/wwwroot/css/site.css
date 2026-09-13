@@ -62,6 +62,16 @@ textarea { resize: vertical; min-height: 140px; }
 .approval-host { font-family: ui-monospace, Consolas, monospace; font-weight: 700; overflow-wrap: anywhere; }
 .answer-warning { color: #6e551e; background: #fff7e7; padding: 12px; border-radius: 8px; font-size: 13px; }
 .answer-text { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.8; }
+.answer-section { margin: 24px 0; padding-top: 16px; border-top: 1px solid var(--line); }
+.answer-section h4 { margin: 0 0 14px; font-size: 18px; }
+.answer-statement { margin-bottom: 22px; }
+.statement-label { font-size: 12px; color: var(--accent); font-weight: 650; }
+.citation { padding: 10px 14px; margin: 8px 0; background: #f1f6f2; border-radius: 8px; overflow-wrap: anywhere; font-size: 13px; }
+.citation summary { cursor: pointer; color: var(--accent); font-weight: 600; }
+.citation blockquote { white-space: pre-wrap; border-left: 3px solid #b5d0c5; padding-left: 14px; margin: 14px 0; }
+.citation .field-hint { margin-bottom: 0; }
+.validation-notice { margin: 20px 0; padding: 16px; border: 1px solid #d9ac89; border-radius: 8px; background: #fff5e9; }
+.validation-notice h3 { margin-top: 0; }
 .source-result { padding: 18px 0; border-top: 1px solid var(--line); overflow-wrap: anywhere; }
 .source-result h4 { font-size: 15px; margin: 0 0 5px; }
 .source-result > p { font-size: 13px; }
