@@ -44,7 +44,7 @@
             <li><strong>Copilot yorumu</strong><span>Modelin çıkarımları ve açıkça belirtilen varsayımları.</span></li>
             <li><strong>Önerilen adımlar</strong><span>Deneyebileceğiniz çözümler ve takip soruları.</span></li>
         </ol>
-        <div class="stage-note"><strong>Geliştirme aşaması · Adım 3</strong><p>Gerçek Copilot araştırması aktiftir ve kullanım kotası tüketebilir. Okunan kaynaklar ayrıca gösterilir; model cevabının iddia ve alıntı doğrulaması henüz tamamlanmadı. Her başlatma yeni bir araştırmadır; takip sohbeti sonraki adımda eklenecek.</p></div>
+        <div class="stage-note"><strong>Kaynakları görün, yorumu ayırt edin</strong><p>Kaynak kimlikleri ve doğrudan alıntılar okunan metinle karşılaştırılır. Bu kontrol, modelin yorumunun doğru olduğunu garanti etmez. Her başlatma yeni bir araştırmadır; takip sohbeti sonraki adımda eklenecek.</p></div>
     </aside>
 </div>
 
@@ -71,9 +71,35 @@
         </div>
     </section>
     <section id="research-answer" hidden aria-labelledby="answer-title">
-        <h3 id="answer-title">Copilot yanıt taslağı</h3>
-        <p class="answer-warning">Bu model yanıtı henüz iddia/alıntı doğrulamasından geçmedi. Aşağıdaki bağlantılar gerçekten okunan kaynaklardır; modelin yazdığı diğer bağlantılar doğrulanmış sayılmaz.</p>
-        <div class="answer-text" id="answer-text"></div>
+        <h3 id="answer-title">Yanıtınız</h3>
+        <p class="answer-warning" id="validation-note">Kaynak bağlantıları ve alıntılar uygulamanın okuduğu metinlerle eşleştirilir. Bu, iddiaların ve yorumların anlamsal doğruluğu için garanti değildir.</p>
+        <section class="answer-section" aria-labelledby="facts-title">
+            <h4 id="facts-title">Verilen URL'den ulaşılan kaynaklar</h4>
+            <p id="no-source-facts" class="field-hint" hidden>Kaynakla desteklenmiş bir bilgi sunulamadı. Copilot yorumları kaynak gerçeği olarak değerlendirilmemelidir.</p>
+            <div id="source-facts"></div>
+        </section>
+        <section class="answer-section" aria-labelledby="commentary-title">
+            <h4 id="commentary-title">Copilot yorumu</h4>
+            <p class="field-hint">Modelin değerlendirmeleri ve genel bilgisi; kaynakta yazan bilgiyle aynı şey değildir.</p>
+            <div id="model-commentary"></div>
+        </section>
+        <section class="answer-section" aria-labelledby="steps-title">
+            <h4 id="steps-title">Önerilen adımlar</h4>
+            <div id="suggested-steps"></div>
+        </section>
+        <section class="answer-section" id="answer-uncertainties" aria-labelledby="uncertainties-title" hidden>
+            <h4 id="uncertainties-title">Belirsizlikler ve sınırlar</h4>
+            <div id="uncertainties"></div>
+        </section>
+        <section class="answer-section" id="similar-sources-section" aria-labelledby="similar-sources-title" hidden>
+            <h4 id="similar-sources-title">İlgili okunan sayfalar ve benzer sorular</h4>
+            <div id="similar-sources"></div>
+        </section>
+    </section>
+    <section class="validation-notice" id="answer-validation-errors" role="alert" hidden>
+        <h3>Yanıt yayımlanmadı</h3>
+        <p>Model yanıtı biçim veya kaynak kontrolünü geçemedi. Aşağıdaki gerçek kaynakları yine de inceleyebilirsiniz.</p>
+        <ul id="validation-issues"></ul>
     </section>
     <section class="research-sources" aria-labelledby="sources-title">
         <h3 id="sources-title">Gerçekten okunan kaynaklar</h3>
