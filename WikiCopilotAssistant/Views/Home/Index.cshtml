@@ -1,0 +1,128 @@
+@model ChatPageModel
+@{
+    ViewData["Title"] = "Kaynaklarından öğren, sorunu çöz";
+}
+<section class="intro">
+    <p class="eyebrow">DOKÜMANLARINIZLA KONUŞUN</p>
+    <h1>Aramaya değil,<br /><span>çözmeye odaklanın.</span></h1>
+    <p>Bir wiki veya doküman bağlantısıyla başlayın. Copilot ilgili sayfaları araştırsın; okunan kaynakları ve önerilerini birlikte inceleyin.</p>
+</section>
+
+<section class="connection-panel" aria-label="Copilot bağlantısı">
+    <div>
+        <p class="status-heading"><span id="status-dot" class="status-dot @(Model.Connection.IsReady ? "ready" : "")" aria-hidden="true"></span>Copilot bağlantısı</p>
+        <p id="connection-message" role="status" aria-live="polite" data-state="@Model.Connection.State">@Model.Connection.Message</p>
+    </div>
+    <button type="button" class="button secondary" data-refresh>Bağlantıyı yeniden kontrol et</button>
+</section>
+
+<div class="workspace">
+    <section class="card source-card" aria-labelledby="source-title">
+        <div class="card-heading">
+            <span class="step-number" aria-hidden="true">01</span>
+            <div><h2 id="source-title">Kaynağınız ve sorunuz</h2><p>URL yalnızca giriş noktasıdır; aynı sitenin diğer sayfaları da araştırılabilir.</p></div>
+        </div>
+        <form action="/research/start" method="post" id="source-form" data-previous-source="@Model.Draft?.SourceUrl">
+            @Html.AntiForgeryToken()
+            <div asp-validation-summary="All" class="validation" role="alert"></div>
+            <label asp-for="SourceUrl"></label>
+            <input asp-for="SourceUrl" type="url" maxlength="4096" placeholder="https://react.dev/learn" required autocomplete="off" spellcheck="false" aria-describedby="source-hint" />
+            <p id="source-hint" class="field-hint">React, Microsoft Learn, Stack Overflow veya herkese açık bir wiki.</p>
+            <label asp-for="Question"></label>
+            <textarea asp-for="Question" rows="6" maxlength="8000" required placeholder="useEffect içindeki state güncellemesi neden sonsuz döngüye giriyor?" aria-describedby="question-hint"></textarea>
+            <p id="question-hint" class="field-hint">Hata mesajı, kullandığınız sürüm ve denediğiniz adımlar yardımcı olur. Şifre veya anahtar paylaşmayın.</p>
+            <button class="button primary" type="submit" id="prepare-button" disabled>Araştırmayı başlat <span aria-hidden="true">→</span></button>
+            <p id="form-feedback" role="status" class="field-hint"></p>
+        </form>
+    </section>
+
+    <aside class="card expectations" aria-labelledby="expectations-title">
+        <p class="eyebrow">NASIL ÇALIŞACAK?</p>
+        <h2 id="expectations-title">Kaynak ile yorum<br />birbirine karışmasın.</h2>
+        <ol class="features">
+            <li><strong>Kaynaklardan gelen bilgiler</strong><span>Gerçekten okunan sayfalar ve bağlantıları.</span></li>
+            <li><strong>Copilot yorumu</strong><span>Modelin çıkarımları ve açıkça belirtilen varsayımları.</span></li>
+            <li><strong>Önerilen adımlar</strong><span>Deneyebileceğiniz çözümler ve takip soruları.</span></li>
+        </ol>
+        <div class="stage-note"><strong>Kaynakları görün, yorumu ayırt edin</strong><p>Kaynak kimlikleri ve doğrudan alıntılar okunan metinle karşılaştırılır. Bu kontrol, modelin yorumunun doğru olduğunu garanti etmez. Her başlatma yeni bir araştırmadır; takip sohbeti sonraki adımda eklenecek.</p></div>
+    </aside>
+</div>
+
+<section class="card research-panel" id="research-panel" aria-labelledby="research-title" hidden>
+    <div class="draft-heading">
+        <div><p class="eyebrow">CANLI ARAŞTIRMA</p><h2 id="research-title">Kaynaklar inceleniyor</h2></div>
+        <div class="research-actions">
+            <button class="button secondary" id="stop-research" type="button" hidden>Durdur</button>
+            <form asp-controller="Chat" asp-action="Reset" method="post" id="reset-form"><button class="button secondary" type="submit">Yeni sohbet</button></form>
+        </div>
+    </div>
+    <p id="research-message" role="status" aria-live="polite"></p>
+    <p id="research-count" class="field-hint"></p>
+    <p id="research-error" class="validation" role="alert" hidden></p>
+    <p id="approved-hosts" class="field-hint"></p>
+    <section class="approval-card" id="host-approval" aria-labelledby="approval-title" hidden>
+        <h3 id="approval-title">Başka bir site için izniniz gerekiyor</h3>
+        <p id="approval-message"></p>
+        <p class="approval-host" id="approval-host"></p>
+        <p class="field-hint">Onay yalnızca bu araştırma için geçerlidir. Alt alan adları ayrıca onay ister. Reddetmek, durdurmak veya süreyi geçirmek erişim izni vermez.</p>
+        <div class="research-actions">
+            <button class="button primary" type="button" id="approve-host">Bu siteye izin ver</button>
+            <button class="button secondary" type="button" id="deny-host">Reddet</button>
+        </div>
+    </section>
+    <section id="research-answer" hidden aria-labelledby="answer-title">
+        <h3 id="answer-title">Yanıtınız</h3>
+        <p class="answer-warning" id="validation-note">Kaynak bağlantıları ve alıntılar uygulamanın okuduğu metinlerle eşleştirilir. Bu, iddiaların ve yorumların anlamsal doğruluğu için garanti değildir.</p>
+        <section class="answer-section" aria-labelledby="facts-title">
+            <h4 id="facts-title">Verilen URL'den ulaşılan kaynaklar</h4>
+            <p id="no-source-facts" class="field-hint" hidden>Kaynakla desteklenmiş bir bilgi sunulamadı. Copilot yorumları kaynak gerçeği olarak değerlendirilmemelidir.</p>
+            <div id="source-facts"></div>
+        </section>
+        <section class="answer-section" aria-labelledby="commentary-title">
+            <h4 id="commentary-title">Copilot yorumu</h4>
+            <p class="field-hint">Modelin değerlendirmeleri ve genel bilgisi; kaynakta yazan bilgiyle aynı şey değildir.</p>
+            <div id="model-commentary"></div>
+        </section>
+        <section class="answer-section" aria-labelledby="steps-title">
+            <h4 id="steps-title">Önerilen adımlar</h4>
+            <div id="suggested-steps"></div>
+        </section>
+        <section class="answer-section" id="answer-uncertainties" aria-labelledby="uncertainties-title" hidden>
+            <h4 id="uncertainties-title">Belirsizlikler ve sınırlar</h4>
+            <div id="uncertainties"></div>
+        </section>
+        <section class="answer-section" id="similar-sources-section" aria-labelledby="similar-sources-title" hidden>
+            <h4 id="similar-sources-title">İlgili okunan sayfalar ve benzer sorular</h4>
+            <div id="similar-sources"></div>
+        </section>
+    </section>
+    <section class="validation-notice" id="answer-validation-errors" role="alert" hidden>
+        <h3>Yanıt yayımlanmadı</h3>
+        <p>Model yanıtı biçim veya kaynak kontrolünü geçemedi. Aşağıdaki gerçek kaynakları yine de inceleyebilirsiniz.</p>
+        <ul id="validation-issues"></ul>
+    </section>
+    <section class="research-sources" aria-labelledby="sources-title">
+        <h3 id="sources-title">Gerçekten okunan kaynaklar</h3>
+        <p class="field-hint">Kartlarda kısa metin önizlemeleri gösterilir. Kaynağın tamamı için bağlantıyı açabilirsiniz.</p>
+        <p id="no-sources" class="field-hint">Henüz okunmuş kaynak yok. Arama sonuçları tek başına kaynak olarak gösterilmez.</p>
+        <div id="source-cards"></div>
+    </section>
+</section>
+
+<p class="privacy-note">Yalnızca bu bilgisayarda çalışır. Araştırma durumu RAM'de tutulur; oturum süresi dolunca veya uygulama yeniden başlatıldığında silinir. Sorunuz ve okunan kaynak metinleri Copilot hizmetine gönderilir. Sabit sayfa/çağrı sınırı yoktur; teknik zaman aşımı ve Durdur kontrolü geçerlidir.</p>
+<noscript><p class="validation">Araştırma, site izinleri ve Durdur işlemi için JavaScript gereklidir. Giriş için kendi terminalinizde <code>copilot login</code> çalıştırabilirsiniz.</p></noscript>
+
+<dialog id="login-dialog" aria-labelledby="login-title" aria-describedby="login-description">
+    <div class="dialog-heading"><p class="eyebrow">HESABINIZ SİZDE KALSIN</p><button type="button" class="close-button" id="close-login" aria-label="Giriş yardımını kapat">×</button></div>
+    <h2 id="login-title">Copilot'a kendi terminalinizden bağlanın</h2>
+    <p id="login-description">Bu uygulama GitHub şifrenizi, token'ınızı veya doğrulama kodunuzu istemez.</p>
+    <ol class="login-steps">
+        <li>Kendi bilgisayarınızda PowerShell veya terminal açın.</li>
+        <li>Aşağıdaki komutu çalıştırın:<pre><code>copilot login</code></pre></li>
+        <li>CLI'nin yönlendirdiği tarayıcıda kendi GitHub hesabınızla girişi tamamlayın.</li>
+        <li>Buraya dönüp bağlantıyı yeniden kontrol edin.</li>
+    </ol>
+    <p class="field-hint">Komut bulunamadıysa <a href="https://docs.github.com/en/copilot/how-tos/copilot-cli/set-up-copilot-cli/install-copilot-cli" target="_blank" rel="noopener noreferrer">resmî Copilot CLI kurulum rehberini</a> izleyin. Uygulama hiçbir şeyi otomatik indirmez veya güncellemez.</p>
+    <p id="dialog-status" role="status" aria-live="polite">@Model.Connection.Message</p>
+    <button type="button" class="button primary" data-refresh>Bağlantıyı yeniden kontrol et</button>
+</dialog>
