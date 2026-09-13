@@ -19,6 +19,7 @@ let actionPending = false;
 let currentResearch = null;
 let generation = 0;
 let previousSources = "";
+let previousAnswer = "";
 let pollingFailed = false;
 
 function showLogin() {
@@ -107,6 +108,7 @@ function renderSources(sources) {
     for (const source of sources) {
         const card = document.createElement("article");
         card.className = "source-result";
+        card.id = `source-${source.id}`;
         const heading = document.createElement("h4");
         const link = document.createElement("a");
         let url;
@@ -127,12 +129,113 @@ function renderSources(sources) {
         attribution.className = "field-hint";
         attribution.textContent = [
             source.id, source.method, source.author, source.license,
+            source.external ? "Ayrıca izin verdiğiniz dış kaynak" : "Başlangıç sitesindeki kaynak",
             source.truncated ? "Kaynak kısaltılmıştır" : null
         ].filter(Boolean).join(" · ");
         card.append(heading, address, text, attribution);
         container.append(card);
     }
     document.getElementById("no-sources").hidden = sources.length > 0;
+}
+
+function sourceLink(citation) {
+    const link = document.createElement("a");
+    const url = new URL(citation.url);
+    if (["http:", "https:"].includes(url.protocol) && !url.username && !url.password) {
+        link.href = url.href;
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+    }
+    link.textContent = `[${citation.sourceId}] ${citation.title || citation.url}`;
+    return link;
+}
+
+function renderCitations(citations, container) {
+    for (const citation of citations) {
+        const evidence = document.createElement("details");
+        evidence.className = "citation";
+        const summary = document.createElement("summary");
+        summary.textContent = `[${citation.sourceId}] Eşleşen alıntıyı ve kaynağı göster`;
+        const quote = document.createElement("blockquote");
+        quote.textContent = citation.quote;
+        const metadata = document.createElement("p");
+        metadata.className = "field-hint";
+        metadata.textContent = [
+            citation.external ? "Ayrıca izin verilen dış kaynak" : "Verilen sitenin kaynağı",
+            citation.author, citation.license
+        ].filter(Boolean).join(" · ");
+        evidence.append(summary, quote, sourceLink(citation), metadata);
+        container.append(evidence);
+    }
+}
+
+function renderStatements(statements, element, steps = false) {
+    element.replaceChildren();
+    for (const statement of statements) {
+        const item = document.createElement("div");
+        item.className = "answer-statement";
+        if (steps) {
+            const label = document.createElement("p");
+            label.className = "statement-label";
+            label.textContent = statement.citations.length ? "Kaynak dayanağı olan öneri" : "Copilot önerisi · kaynakla doğrulanmış bilgi değildir";
+            item.append(label);
+        }
+        const text = document.createElement("p");
+        text.className = "answer-text";
+        text.textContent = statement.text;
+        item.append(text);
+        renderCitations(statement.citations, item);
+        element.append(item);
+    }
+}
+
+function renderParagraphs(texts, element, emptyText) {
+    element.replaceChildren();
+    for (const text of texts.length ? texts : [emptyText]) {
+        if (!text) continue;
+        const paragraph = document.createElement("p");
+        paragraph.className = "answer-text";
+        paragraph.textContent = text;
+        element.append(paragraph);
+    }
+}
+
+function renderAnswer(snapshot) {
+    const answer = snapshot?.answer;
+    const signature = JSON.stringify([answer, snapshot?.validationState, snapshot?.validationIssues]);
+    if (signature === previousAnswer) return;
+    previousAnswer = signature;
+    document.getElementById("research-answer").hidden = !answer;
+    const issues = snapshot?.validationIssues || [];
+    document.getElementById("answer-validation-errors").hidden = !issues.length;
+    const issueList = document.getElementById("validation-issues");
+    issueList.replaceChildren();
+    for (const issue of issues) {
+        const item = document.createElement("li");
+        item.textContent = issue;
+        issueList.append(item);
+    }
+    if (!answer) return;
+    document.getElementById("validation-note").textContent = snapshot.validationState === "no_evidence"
+        ? "Bu araştırmada okunmuş kaynak bulunamadı. Aşağıdakiler yalnızca Copilot yorumlarıdır; kaynakla doğrulanmış bilgi değildir."
+        : "Kaynak kimlikleri ve alıntılar okunan metinle eşleştirildi. Bu kontrol, iddia ve yorumların anlamsal doğruluğunu garanti etmez.";
+    document.getElementById("no-source-facts").hidden = answer.sourceFacts.length > 0;
+    renderStatements(answer.sourceFacts, document.getElementById("source-facts"));
+    renderParagraphs(answer.commentary, document.getElementById("model-commentary"), "Ek model yorumu bulunmuyor.");
+    renderStatements(answer.suggestedSteps, document.getElementById("suggested-steps"), true);
+    if (!answer.suggestedSteps.length)
+        renderParagraphs([], document.getElementById("suggested-steps"), "Ek bir adım önerilmedi.");
+    document.getElementById("answer-uncertainties").hidden = !answer.uncertainties.length;
+    renderParagraphs(answer.uncertainties, document.getElementById("uncertainties"));
+    document.getElementById("similar-sources-section").hidden = !answer.similarSources.length;
+    const similar = document.getElementById("similar-sources");
+    similar.replaceChildren();
+    for (const citation of answer.similarSources) {
+        const entry = document.createElement("p");
+        entry.append(sourceLink(citation));
+        if (citation.external) entry.append(document.createTextNode(" · İzin verilen dış kaynak"));
+        similar.append(entry);
+    }
 }
 
 function renderResearch(snapshot) {
@@ -144,6 +247,7 @@ function renderResearch(snapshot) {
         const headings = {
             running: "Kaynaklar inceleniyor",
             awaiting_approval: "Site erişimi için onay bekleniyor",
+            validating: "Kaynaklar ve alıntılar kontrol ediliyor",
             completed: "Araştırma tamamlandı",
             cancelled: "Araştırma durduruldu",
             timed_out: "Araştırma zaman aşımına uğradı",
@@ -162,8 +266,7 @@ function renderResearch(snapshot) {
             document.getElementById("approval-host").textContent = approval.host;
             document.getElementById("approval-message").textContent = approval.message;
         }
-        document.getElementById("research-answer").hidden = !snapshot.answer;
-        document.getElementById("answer-text").textContent = snapshot.answer || "";
+        renderAnswer(snapshot);
         renderSources(snapshot.sources || []);
     } else {
         approvalCard.hidden = true;
@@ -171,7 +274,7 @@ function renderResearch(snapshot) {
         document.getElementById("research-message").textContent = "";
         document.getElementById("research-count").textContent = "";
         document.getElementById("approved-hosts").textContent = "";
-        document.getElementById("research-answer").hidden = true;
+        renderAnswer(null);
         renderSources([]);
         previousSources = "";
     }
