@@ -17,8 +17,9 @@ and external-source labels come from the server's evidence registry, not from
 model-generated links.
 
 **Reference/quotation checks are not a guarantee of semantic truth.** A matching
-quote does not prove that the model interpreted it correctly. Contextual follow-up
-chat remains a subsequent step; each start still creates a separate operation.
+quote does not prove that the model interpreted it correctly. Follow-up questions
+reuse the conversation's questions, checked answers, and captured source context
+from RAM. Each turn uses a fresh Copilot session, which is cleaned up afterwards.
 
 The `--check-copilot` command checks the runtime version, authentication
 availability, and available model count. It does not send a model prompt,
@@ -159,10 +160,17 @@ restore packages or download a browser/runtime.
 - Use **Durdur** to cancel. Wait for cleanup before starting another operation.
   Closing or reloading the page is not a Stop command.
 - Use **Yeni sohbet** to cancel and clear the current operation. Changing the
-  source prompts before replacing the old operation in the browser.
+  source or starting another initial question prompts before replacing the old
+  conversation in the browser. The replacement inherits no history or permissions.
 - A completed answer shows source statements with expandable matching quotations,
   a separately labeled Copilot interpretation, and suggestions labeled by their
   source support. Search snippets alone cannot support a source statement.
+- Use the follow-up field below the result to describe what you tried, supply a
+  version/error, or ask another question. Earlier turns remain available in the
+  conversation history, including their citations and any failed/cancelled status.
+- **Daha fazla araştır** starts a new turn about the unresolved questions, using
+  the same context. It is also available after a failure, Stop, or timeout once
+  cleanup finishes. Nothing restarts automatically.
 
 Only loopback HTTP(S) listening addresses are accepted. Foreign Host/Origin
 requests and cross-site browser requests are rejected. State-changing requests
@@ -179,9 +187,9 @@ timeouts still apply.
 - One active operation per browser session, including cleanup. A second start
   returns HTTP 409 instead of launching another agent.
 - Another hostname or subdomain pauses `read_source` until the corresponding
-  on-screen decision is submitted. Approval is scoped to the current operation;
-  a new start never inherits approvals. Rejected or expired decisions cannot
-  be replayed, and prompts cannot approve a host.
+  on-screen decision is submitted. Approval and rejection are scoped to the
+  conversation and survive follow-up turns. A new initial start never inherits
+  them. Old decision IDs cannot be replayed, and prompts cannot approve a host.
 - Stop immediately freezes publication, cancels pending decisions, requests
   SDK abort, and drains running readers before releasing the runtime lease.
   Previously captured source cards remain available. A stale operation ID
@@ -194,10 +202,34 @@ timeouts still apply.
   waits for cleanup before clearing state. Restart removes all in-app state.
 - Safety/display limits remain distinct from a research-call cap: source cards
   retain up to 128 document versions with 500-character previews; full captured
-  evidence is bounded to 4 Mi characters per operation. An operation records
+  evidence is bounded to 4 Mi characters per conversation. A conversation records
   up to 128 host decisions. Structured model JSON and individual answer sections
   also have finite size limits. Reaching a source-memory limit is disclosed and
   the omitted document cannot be cited; no research-call count limit is imposed.
+
+### Follow-up context and its limit
+
+The application does not leave a Copilot session running between questions.
+It supplies each new turn with the previous questions, their checked answers
+(or failure status), and a catalog of previously captured source IDs with short,
+explicitly marked previews. Full captured evidence stays in RAM for quotation
+validation. The agent can reread a source when it needs more than the previous
+quotations/previews. Changed source text receives a new ID; old quotations retain
+their original evidence version. Prior model commentary remains commentary,
+not a new source of facts.
+
+The serialized history/catalog is limited to **128,000 characters**. The UI shows
+its size after cleanup. When it exceeds the limit, follow-up and further research
+are refused with an explicit request to start a new conversation. Existing
+answers are still visible; history is not silently discarded or summarized.
+This is a context/memory limit, not a limit on research tool calls or pages.
+Replaying context sends it to Copilot again and can increase account usage.
+
+Only the latest turn in the same browser session can be continued. Duplicate
+submissions, stale IDs, and other sessions cannot append to it. A failed follow-up
+does not erase earlier answers. Reloading restores the in-memory conversation;
+reset, replacement, expiry, and application restart remove it. There is no
+database, local transcript export, or persistent in-app chat storage.
 
 Optional configuration uses the existing .NET configuration system:
 
@@ -213,7 +245,8 @@ configuration. Read transport/browser safety deadlines may be shorter than
 the overall research deadline.
 
 The polling API is session-owned: `GET /research/status`; antiforgery-protected
-`POST /research/start`, `/research/stop`, `/research/approve` and `/chat/reset`.
+`POST /research/start`, `/research/continue`, `/research/stop`,
+`/research/approve` and `/chat/reset`.
 The browser presents safe failures rather than raw SDK exceptions or account data.
 
 ### How answer checking works
@@ -386,7 +419,8 @@ or recommendation is correct.
 Immutable URL/content-version keys and the disclosed evidence-memory limits were
 inspected in code. A changing remote document at the same URL and exhaustion of
 the entire evidence-memory budget were not artificially staged. These results
-do not cover contextual follow-up conversation, which remains the next step.
+are specific to the structured-answer milestone. Follow-up acceptance is
+documented separately as that milestone is verified.
 
 ## Browser privacy boundary
 
