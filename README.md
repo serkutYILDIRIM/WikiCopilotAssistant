@@ -153,7 +153,7 @@ Open `http://localhost:5242`. This command uses the existing build and does not
 restore packages or download a browser/runtime.
 
 - Wait for the Copilot connection status, or use the terminal-login help.
-- Enter a public source URL and question, then choose **Araştırmayı başlat**.
+- Enter a public source URL and question, then choose **Yeni sohbet başlat**.
   This sends a real prompt to Copilot and consumes your account's allowance.
 - Watch the progress and successfully read source cards. If another hostname
   is needed, explicitly allow or deny it before the page is opened.
@@ -434,6 +434,9 @@ These are manual application checks, not unit tests:
 | Source replacement | A source URL injected into a follow-up did not change its source. An explicit new initial start cleared history and retained only the new starting hostname. Reset invalidated the old continuation ID. |
 | Conversation-scoped host approval | A Microsoft Learn host approved during React research remained approved in the follow-up, which read it without another approval prompt. Previously captured source IDs and the external-source label were retained even though the first answer had failed. A Wikipedia host had been explicitly denied. |
 | Timeout continuation | In a separate two-second-deadline instance, a timed-out turn could be continued. Further research got a new ID and its own deadline, preserved the earlier timeout in history, and published no late answer. Production timeout settings were unchanged. |
+| Browser history and reload | A real source question and follow-up produced checked answers; reloading after a further-research Stop restored both earlier answers with their sections and citations. History and quotation details opened with the keyboard; the 390-pixel layout had no horizontal overflow. |
+| Safe text and drafts | HTML-like text in model commentary remained literal, with no injected element. Further research did not send or erase an unsent follow-up draft. A real rejected request showed an error and preserved the typed question. |
+| Browser replacement and reset | Cancelling the replacement confirmation preserved the conversation. Accepting a different source cleared its old history, sources and host scope. Stop and New conversation then cancelled/cleared the replacement normally. |
 
 ## Browser privacy boundary
 
