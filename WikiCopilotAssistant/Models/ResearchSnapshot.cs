@@ -12,7 +12,14 @@ public sealed record ResearchSnapshot(
     IReadOnlyList<string> ApprovedHosts,
     string ValidationState = "pending",
     IReadOnlyList<string>? ValidationIssues = null,
-    int RepairAttempts = 0)
+    int RepairAttempts = 0,
+    string Question = "",
+    string SourceUrl = "",
+    IReadOnlyList<ConversationEntry>? History = null,
+    bool CanContinue = false,
+    string ContinuationMessage = "",
+    int ContextCharacters = 0,
+    bool MoreResearch = false)
 {
     public static ResearchSnapshot Idle { get; } = new(
         Guid.Empty, "idle", "Araştırma başlatılmadı.", false, 0, null, [], null, []);
