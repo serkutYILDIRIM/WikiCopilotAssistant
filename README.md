@@ -10,10 +10,15 @@ The web research step connects the MVC source/question form to actual Copilot
 research. It includes progress polling, exact-host approval, Stop, and source
 cards populated only from successfully read documents.
 
-**The displayed model answer is an unverified draft, not a citation-validated
-answer.** It is rendered as plain text; model-written URLs do not become source
-cards. Claim/quotation validation and contextual follow-up chat remain subsequent
-steps. Each new start currently creates a separate research operation.
+Answers are separated into source-backed statements, Copilot commentary, and
+suggested steps. Source-backed statements require IDs assigned by the server
+and short quotations matching the text actually read. URLs, titles, attribution,
+and external-source labels come from the server's evidence registry, not from
+model-generated links.
+
+**Reference/quotation checks are not a guarantee of semantic truth.** A matching
+quote does not prove that the model interpreted it correctly. Contextual follow-up
+chat remains a subsequent step; each start still creates a separate operation.
 
 The `--check-copilot` command checks the runtime version, authentication
 availability, and available model count. It does not send a model prompt,
@@ -155,9 +160,9 @@ restore packages or download a browser/runtime.
   Closing or reloading the page is not a Stop command.
 - Use **Yeni sohbet** to cancel and clear the current operation. Changing the
   source prompts before replacing the old operation in the browser.
-- A completed answer is explicitly marked as not yet citation-validated.
-  The source cards are actual read results; search snippets alone are not
-  presented as verified page content.
+- A completed answer shows source statements with expandable matching quotations,
+  a separately labeled Copilot interpretation, and suggestions labeled by their
+  source support. Search snippets alone cannot support a source statement.
 
 Only loopback HTTP(S) listening addresses are accepted. Foreign Host/Origin
 requests and cross-site browser requests are rejected. State-changing requests
@@ -188,10 +193,11 @@ timeouts still apply.
   retention interval; drafts with no research expire after inactivity. Reset
   waits for cleanup before clearing state. Restart removes all in-app state.
 - Safety/display limits remain distinct from a research-call cap: source cards
-  retain up to 128 documents with 500-character previews, a model draft displays
-  up to 32,000 characters, and an operation records up to 128 host decisions.
-  Reaching these limits is disclosed in the status/output; no automatic
-  research-call count limit has been introduced.
+  retain up to 128 document versions with 500-character previews; full captured
+  evidence is bounded to 4 Mi characters per operation. An operation records
+  up to 128 host decisions. Structured model JSON and individual answer sections
+  also have finite size limits. Reaching a source-memory limit is disclosed and
+  the omitted document cannot be cited; no research-call count limit is imposed.
 
 Optional configuration uses the existing .NET configuration system:
 
@@ -209,6 +215,44 @@ the overall research deadline.
 The polling API is session-owned: `GET /research/status`; antiforgery-protected
 `POST /research/start`, `/research/stop`, `/research/approve` and `/chat/reset`.
 The browser presents safe failures rather than raw SDK exceptions or account data.
+
+### How answer checking works
+
+1. `read_source` records the successfully read source body in RAM and returns
+   its immutable source ID to Copilot. Reading the same URL with changed content
+   produces a new evidence version; earlier quotes are not checked against an
+   overwritten document. Failed reads and search snippets receive no evidence ID.
+2. Copilot returns a structured JSON answer. Every source-backed statement
+   requires at least one short quotation with an existing source ID. Suggestions
+   without citations are explicitly model suggestions.
+3. The validator checks the shape, IDs, safe source links, and quotation matches
+   against captured full text (not just the 500-character UI preview). Whitespace
+   differences may be normalized; words and casing may not be invented.
+4. If the response fails, at most one correction is requested. New source tools
+   are disabled during that correction and the original research deadline still
+   applies. An answer that remains invalid is not published. Actual source cards
+   remain available, including when the model fails.
+5. With no read evidence, only explicitly labeled model commentary/suggestions
+   can be displayed. The UI states that no source-backed facts are available.
+
+Only the server creates clickable citations. Model-authored URLs are not accepted
+in answer prose; citations and related-page references must point to registry IDs.
+Approved external sites are marked separately from the starting site's sources.
+Source access approval, stop/reset isolation and safe text rendering still apply
+during answer validation.
+
+The manual validator command fetches one public source and reads answer JSON
+from standard input. It does not access local files or call a model:
+
+```powershell
+$json | dotnet WikiCopilotAssistant\bin\Debug\net10.0\WikiCopilotAssistant.dll --validate-answer https://example.com
+```
+
+`$json` must use the same answer contract as the research tool: `sourceFacts`,
+`commentary`, `suggestedSteps`, `uncertainties`, and `similarSources` arrays.
+IDs start at `S1` for the documents returned by that source read. Errors report
+validation categories, never the raw JSON content. This is a manual application
+diagnostic, not a unit-test project.
 
 The background Copilot client checks startup readiness without asking a model
 question. Expected connection failures are shown as safe messages, without
@@ -248,8 +292,10 @@ Source text is supplied inline to Copilot; SDK large-output file offloading is
 disabled so the agent does not need local filesystem tools. Large pages return
 explicitly marked excerpts; an actual section-anchor URL can select a later
 section. Stack Overflow answer pagination is exposed through continuation URLs.
-These capabilities do not yet implement the final citation validator or the
-web interface's cancellation and cross-site approval flows.
+This older diagnostic is only a connectivity/reader check: it does not run the
+final citation validator or the web interface's cancellation and cross-site
+approval flows. The MVC research flow implements those controls and the answer
+checking described above.
 
 The planned application likewise has no fixed research-call count limit.
 User-approved site scope, a Stop action, finite technical timeouts, and
@@ -277,7 +323,9 @@ checks, `--read-timeout-ms <1..180000>` can shorten that deadline.
 
 ## Verified technical scenarios
 
-These were manual checks against the application, not unit tests:
+These were manual checks against the application, not unit tests. The following
+table records the earlier integration milestones; references to drafts describe
+the behavior before structured answer checking was added.
 
 | Scenario | Observed outcome |
 |---|---|
@@ -310,8 +358,35 @@ or a complete security certification. Login/paywall/CAPTCHA content is not
 supported. Browser rendering blocks frames, workers, WebSockets, downloads,
 media and known analytics/font hosts; pages requiring those features may not
 be fully readable. Other script hosts require approval rather than being
-silently loaded. The CLI diagnostic reports that need; the approval UI is
-still planned.
+silently loaded. The CLI diagnostic reports that need; the MVC interface pauses
+for an explicit hostname approval.
+
+### Structured answer acceptance
+
+The structured-answer build was also exercised with the actual Copilot runtime,
+public source reads, browser form submissions, and session-owned HTTP requests:
+
+| Scenario | Observed outcome |
+|---|---|
+| React useEffect research | Completed with four source-backed statements, five matching citations, two separately labeled commentary items, and two suggestions. One correction was needed. |
+| Stack Overflow dependency-array question | Completed with three source-backed statements and five matching citations across a question and two answer permalinks. Citations retained author metadata and CC BY-SA 4.0 attribution; commentary and one suggestion were separate. One correction was needed. |
+| Full evidence versus card previews | Three accepted React quotations came from beyond the 500-character source-card previews. Validation used the captured body, not the preview. |
+| Source unavailable | A real HTTP 404 yielded no source cards or source facts; only labeled model commentary and explicit missing-evidence warnings were published after one correction. |
+| External citation | An example.com read waited for approval from an example.org operation. Its accepted citation, source card, and related-page link were labeled as external; the starting source was not. |
+| Invalid model answer | A Stack Overflow run still contained two nonmatching quotations after its single correction. No answer was published, validation errors were reported, and all 11 successfully read question/answer cards remained available. |
+| Stop during correction | Stopping a real operation in the correction phase produced `cancelled`, completed cleanup, preserved its source card, and published no late answer. |
+| Strict contract diagnostic | Actual-source stdin checks accepted exact and whitespace-normalized quotations. Unknown IDs, fabricated quotations, model URL fields, prose URLs, duplicate properties, null arrays, missing citations, malformed JSON, and an empty answer were rejected. Input exceeding 64,000 characters was rejected before fetching a source. |
+| Browser presentation | Quotations expanded with the keyboard. A 390-pixel viewport had no horizontal overflow. Model-authored HTML-like text remained literal text instead of creating an element. |
+
+Correction is bounded, not a promise that every model response will pass.
+If it fails, inspect the retained source cards or start a new, more focused
+question. A matching quotation still does not establish that the interpretation
+or recommendation is correct.
+
+Immutable URL/content-version keys and the disclosed evidence-memory limits were
+inspected in code. A changing remote document at the same URL and exhaustion of
+the entire evidence-memory budget were not artificially staged. These results
+do not cover contextual follow-up conversation, which remains the next step.
 
 ## Browser privacy boundary
 
