@@ -419,8 +419,21 @@ or recommendation is correct.
 Immutable URL/content-version keys and the disclosed evidence-memory limits were
 inspected in code. A changing remote document at the same URL and exhaustion of
 the entire evidence-memory budget were not artificially staged. These results
-are specific to the structured-answer milestone. Follow-up acceptance is
-documented separately as that milestone is verified.
+are specific to the structured-answer milestone.
+
+### Follow-up acceptance
+
+These are manual application checks, not unit tests:
+
+| Scenario | Observed outcome |
+|---|---|
+| Actual React follow-up | The next checked answer recalled the user's React 19 version, attempted `setCount` change, and a generic conversation marker without those details being repeated in the follow-up. Earlier source IDs and the checked answer remained available. |
+| Further research and Stop | A third turn was marked as further research. Stopping it suppressed its answer while retaining both earlier checked answers; another continuation remained possible after cleanup. |
+| Context threshold | Exactly 128,000 serialized characters allowed continuation. A subsequent cancelled turn raised the context to 128,222 characters; the next POST returned 422 with an explicit limit notice and did not change the history or turn ID. Reset returned idle. |
+| Ownership and stale requests | Another session, an old turn ID, duplicate submission, and continuation during an active turn returned 409. Empty/8,001-character questions returned 422; a request without the antiforgery token returned 400. |
+| Source replacement | A source URL injected into a follow-up did not change its source. An explicit new initial start cleared history and retained only the new starting hostname. Reset invalidated the old continuation ID. |
+| Conversation-scoped host approval | A Microsoft Learn host approved during React research remained approved in the follow-up, which read it without another approval prompt. Previously captured source IDs and the external-source label were retained even though the first answer had failed. A Wikipedia host had been explicitly denied. |
+| Timeout continuation | In a separate two-second-deadline instance, a timed-out turn could be continued. Further research got a new ID and its own deadline, preserved the earlier timeout in history, and published no late answer. Production timeout settings were unchanged. |
 
 ## Browser privacy boundary
 
@@ -459,4 +472,4 @@ Windows account has operating-system-level isolation from all of your files.
   not remove it if it was already committed.
 - Copilot is an online service, not an offline model. Its own credential
   storage, session files, and synchronization policies are separate from
-  the application's planned in-memory chat history.
+  the application's in-memory chat history.
