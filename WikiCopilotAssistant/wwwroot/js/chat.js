@@ -8,6 +8,11 @@ const refreshButtons = document.querySelectorAll("[data-refresh]");
 const stopButton = document.getElementById("stop-research");
 const approvalCard = document.getElementById("host-approval");
 const researchError = document.getElementById("research-error");
+const continuationForm = document.getElementById("continuation-form");
+const followupQuestion = document.getElementById("followup-question");
+const sendFollowupButton = document.getElementById("send-followup");
+const moreResearchButton = document.getElementById("more-research");
+const terminalStates = new Set(["completed", "cancelled", "timed_out", "failed"]);
 let ready = statusMessage.dataset.state === "ready";
 let checking = false;
 let loginShown = false;
@@ -20,6 +25,7 @@ let currentResearch = null;
 let generation = 0;
 let previousSources = "";
 let previousAnswer = "";
+let previousHistory = "";
 let pollingFailed = false;
 
 function showLogin() {
@@ -36,6 +42,19 @@ function updateControls() {
     stopButton.disabled = actionPending || currentResearch?.state === "cancelled";
     refreshButtons.forEach(button => button.disabled = checking || active || actionPending);
     document.querySelectorAll("#host-approval button").forEach(button => button.disabled = actionPending);
+    document.querySelector("#reset-form button").disabled = actionPending;
+    const canContinue = continuationReady();
+    followupQuestion.disabled = !canContinue;
+    sendFollowupButton.disabled = !canContinue || !followupQuestion.value.trim();
+    moreResearchButton.disabled = !canContinue;
+    document.getElementById("followup-count").textContent =
+        `${followupQuestion.value.length.toLocaleString("tr-TR")} / 8.000 karakter`;
+}
+
+function continuationReady() {
+    return ready && !checking && researchLoaded && !actionPending &&
+        currentResearch?.isActive === false && terminalStates.has(currentResearch?.state) &&
+        currentResearch?.canContinue === true;
 }
 
 function applyConnection(status) {
@@ -55,7 +74,7 @@ function applyConnection(status) {
     updateControls();
 }
 
-async function requestJson(url, method = "GET", fields) {
+async function requestJson(url, method = "GET", fields, expectedStatus) {
     const options = { method, cache: "no-store", credentials: "same-origin" };
     if (method === "POST") {
         options.headers = {
@@ -69,8 +88,11 @@ async function requestJson(url, method = "GET", fields) {
     if (!response.ok) {
         throw new Error(payload?.message ||
             (response.status === 400 ? "İstek doğrulanamadı. Sayfayı yenileyip tekrar deneyin." :
-                "İşlem tamamlanamadı. Uygulama bağlantısını kontrol edip yeniden deneyin."));
+                response.status === 409 ? "Sohbet başka bir sekmede değişmiş veya hâlâ işlem yapılıyor. Durum yenilendikten sonra tekrar deneyin; yazdığınız soru korunuyor." :
+                    "İşlem tamamlanamadı. Uygulama bağlantısını kontrol edip yeniden deneyin."));
     }
+    if (expectedStatus && response.status !== expectedStatus)
+        throw new Error("İstek kabulü doğrulanamadı. Yazdığınız soru korunuyor; sohbet durumunu kontrol edip tekrar deneyin.");
     if (!payload) throw new Error("Uygulama beklenen yanıtı vermedi. Sayfayı yenileyin.");
     return payload;
 }
@@ -140,8 +162,9 @@ function renderSources(sources) {
 
 function sourceLink(citation) {
     const link = document.createElement("a");
-    const url = new URL(citation.url);
-    if (["http:", "https:"].includes(url.protocol) && !url.username && !url.password) {
+    let url;
+    try { url = new URL(citation.url); } catch { url = null; }
+    if (url && ["http:", "https:"].includes(url.protocol) && !url.username && !url.password) {
         link.href = url.href;
         link.target = "_blank";
         link.rel = "noopener noreferrer";
@@ -205,7 +228,9 @@ function renderAnswer(snapshot) {
     const signature = JSON.stringify([answer, snapshot?.validationState, snapshot?.validationIssues]);
     if (signature === previousAnswer) return;
     previousAnswer = signature;
-    document.getElementById("research-answer").hidden = !answer;
+    const container = document.getElementById("research-answer");
+    container.hidden = !answer;
+    container.replaceChildren();
     const issues = snapshot?.validationIssues || [];
     document.getElementById("answer-validation-errors").hidden = !issues.length;
     const issueList = document.getElementById("validation-issues");
@@ -215,27 +240,65 @@ function renderAnswer(snapshot) {
         item.textContent = issue;
         issueList.append(item);
     }
-    if (!answer) return;
-    document.getElementById("validation-note").textContent = snapshot.validationState === "no_evidence"
+    if (answer) renderStructuredAnswer(answer, snapshot.validationState, container);
+}
+
+function renderStructuredAnswer(answer, validationState, container) {
+    const content = document.getElementById("structured-answer-template").content.cloneNode(true);
+    const part = name => content.querySelector(`[data-answer="${name}"]`);
+    part("validation-note").textContent = validationState === "no_evidence"
         ? "Bu araştırmada okunmuş kaynak bulunamadı. Aşağıdakiler yalnızca Copilot yorumlarıdır; kaynakla doğrulanmış bilgi değildir."
         : "Kaynak kimlikleri ve alıntılar okunan metinle eşleştirildi. Bu kontrol, iddia ve yorumların anlamsal doğruluğunu garanti etmez.";
-    document.getElementById("no-source-facts").hidden = answer.sourceFacts.length > 0;
-    renderStatements(answer.sourceFacts, document.getElementById("source-facts"));
-    renderParagraphs(answer.commentary, document.getElementById("model-commentary"), "Ek model yorumu bulunmuyor.");
-    renderStatements(answer.suggestedSteps, document.getElementById("suggested-steps"), true);
+    part("no-source-facts").hidden = answer.sourceFacts.length > 0;
+    renderStatements(answer.sourceFacts, part("source-facts"));
+    renderParagraphs(answer.commentary, part("model-commentary"), "Ek model yorumu bulunmuyor.");
+    renderStatements(answer.suggestedSteps, part("suggested-steps"), true);
     if (!answer.suggestedSteps.length)
-        renderParagraphs([], document.getElementById("suggested-steps"), "Ek bir adım önerilmedi.");
-    document.getElementById("answer-uncertainties").hidden = !answer.uncertainties.length;
-    renderParagraphs(answer.uncertainties, document.getElementById("uncertainties"));
-    document.getElementById("similar-sources-section").hidden = !answer.similarSources.length;
-    const similar = document.getElementById("similar-sources");
-    similar.replaceChildren();
+        renderParagraphs([], part("suggested-steps"), "Ek bir adım önerilmedi.");
+    part("answer-uncertainties").hidden = !answer.uncertainties.length;
+    renderParagraphs(answer.uncertainties, part("uncertainties"));
+    part("similar-sources-section").hidden = !answer.similarSources.length;
+    const similar = part("similar-sources");
     for (const citation of answer.similarSources) {
         const entry = document.createElement("p");
         entry.append(sourceLink(citation));
         if (citation.external) entry.append(document.createTextNode(" · İzin verilen dış kaynak"));
         similar.append(entry);
     }
+    container.append(content);
+}
+
+function renderHistory(history) {
+    const signature = JSON.stringify(history);
+    if (signature === previousHistory) return;
+    previousHistory = signature;
+    const container = document.getElementById("conversation-turns");
+    const openTurns = new Set(Array.from(container.children)
+        .filter(turn => turn.open).map(turn => turn.dataset.turnId));
+    const turns = history.map((entry, index) => {
+        const turn = document.createElement("details");
+        turn.className = "conversation-turn";
+        turn.dataset.turnId = entry.id;
+        turn.open = openTurns.has(String(entry.id));
+        const summary = document.createElement("summary");
+        summary.textContent = `${index + 1}. ${entry.moreResearch ? "Daha fazla araştırma · Önceki sorular ve açık kalan noktalar" : entry.question}`;
+        const message = document.createElement("p");
+        message.className = "field-hint";
+        message.textContent = entry.message || "";
+        const answer = document.createElement("div");
+        if (entry.answer) {
+            renderStructuredAnswer(entry.answer, entry.validationState, answer);
+        } else {
+            const notice = document.createElement("p");
+            notice.className = "answer-warning";
+            notice.textContent = "Bu tur için yayımlanmış bir yanıt bulunmuyor. Okunan kaynaklar aşağıda korunur.";
+            answer.append(notice);
+        }
+        turn.append(summary, message, answer);
+        return turn;
+    });
+    container.replaceChildren(...turns);
+    document.getElementById("conversation-history").hidden = !history.length;
 }
 
 function renderResearch(snapshot) {
@@ -255,11 +318,26 @@ function renderResearch(snapshot) {
         };
         document.getElementById("research-title").textContent = headings[snapshot.state] || "Araştırma";
         document.getElementById("research-message").textContent = snapshot.message +
-            (snapshot.isActive && ["completed", "cancelled", "timed_out", "failed"].includes(snapshot.state)
-                ? " Oturum temizliği sürüyor; bitince yeni araştırma başlatabilirsiniz." : "");
+            (snapshot.isActive && terminalStates.has(snapshot.state)
+                ? " Oturum temizliği sürüyor; devam etmek için bitmesini bekleyin." : "");
         document.getElementById("research-count").textContent = `${snapshot.toolCalls} araç çağrısı · Sabit çağrı sınırı yok`;
+        document.getElementById("conversation-source").textContent = `Bu sohbetin başlangıç kaynağı: ${snapshot.sourceUrl || ""}`;
         document.getElementById("approved-hosts").textContent =
-            `İzin verilen siteler: ${(snapshot.approvedHosts || []).join(", ")}`;
+            `Bu sohbette izin verilen siteler: ${(snapshot.approvedHosts || []).join(", ")}`;
+        document.getElementById("current-question-section").hidden = false;
+        document.getElementById("current-question-title").textContent = snapshot.moreResearch ? "Daha fazla araştırma" : "Şu anki sorunuz";
+        document.getElementById("current-question").textContent = snapshot.moreResearch
+            ? "Önceki sorular ve açık kalan noktalar için ek araştırma." : snapshot.question || "";
+        document.getElementById("current-more-research").hidden = !snapshot.moreResearch;
+        document.getElementById("continuation-section").hidden = false;
+        document.getElementById("continuation-message").textContent = snapshot.continuationMessage ||
+            (snapshot.isActive ? "Araştırma ve oturum temizliği tamamlanınca devam edebilirsiniz." :
+                snapshot.canContinue ? "Takip sorusu gönderebilir veya aynı soruyu daha fazla araştırabilirsiniz." :
+                    "Bu sohbete şu anda devam edilemiyor. Yeni bir sohbet başlatabilirsiniz.");
+        const characters = Number.isFinite(snapshot.contextCharacters) ? snapshot.contextCharacters : 0;
+        document.getElementById("context-capacity").textContent = snapshot.isActive
+            ? "Araştırma ve temizlik tamamlanınca sonraki devam bağlamının boyutu hesaplanacak. Sınır 128.000 karakterdir; aşılırsa geçmiş kısaltılmaz, yeni sohbet gerekir."
+            : `Sonraki devam isteğinin bağlamı: ${characters.toLocaleString("tr-TR")} / 128.000 karakter (güncel sonuç dahil sohbet geçmişi ve kaynak önizlemeleri). Sınır aşılırsa geçmiş kısaltılmaz; yeni sohbet gerekir.`;
         const approval = snapshot.approval;
         approvalCard.hidden = !approval;
         if (approval) {
@@ -267,6 +345,7 @@ function renderResearch(snapshot) {
             document.getElementById("approval-message").textContent = approval.message;
         }
         renderAnswer(snapshot);
+        renderHistory(snapshot.history || []);
         renderSources(snapshot.sources || []);
     } else {
         approvalCard.hidden = true;
@@ -274,7 +353,15 @@ function renderResearch(snapshot) {
         document.getElementById("research-message").textContent = "";
         document.getElementById("research-count").textContent = "";
         document.getElementById("approved-hosts").textContent = "";
+        document.getElementById("conversation-source").textContent = "";
+        document.getElementById("current-question-section").hidden = true;
+        document.getElementById("current-question").textContent = "";
+        document.getElementById("current-more-research").hidden = true;
+        document.getElementById("continuation-section").hidden = true;
+        document.getElementById("continuation-message").textContent = "";
+        document.getElementById("context-capacity").textContent = "";
         renderAnswer(null);
+        renderHistory([]);
         renderSources([]);
         previousSources = "";
     }
@@ -305,24 +392,41 @@ async function pollResearch() {
     }
 }
 
-async function researchAction(url, fields) {
-    if (actionPending) return;
+async function researchAction(url, fields, options = {}) {
+    if (actionPending) return false;
     actionPending = true;
-    generation++;
+    const expectedGeneration = ++generation;
     clearTimeout(researchTimer);
     showResearchError("");
     pollingFailed = false;
     updateControls();
     try {
-        renderResearch(await requestJson(url, "POST", fields));
+        if (options.confirmReplacement) {
+            const latest = await requestJson("/research/status");
+            if (expectedGeneration !== generation) return false;
+            renderResearch(latest);
+            if (latest.isActive) {
+                throw new Error("Bu sohbet hâlâ işlem yapıyor. Yeni sohbet başlatmadan önce bitmesini bekleyin veya durdurun.");
+            }
+            if (currentResearch && !confirm(
+                `Mevcut sohbet (${currentResearch.sourceUrl || "başlangıç kaynağı"}) silinsin mi? Aynı URL olsa bile tüm geçmiş, kaynaklar ve site izinleri temizlenerek yeni sohbet başlatılacak.\nYeni kaynak: ${fields.get("SourceUrl")}`)) return false;
+        }
+        const snapshot = await requestJson(url, "POST", fields, options.expectedStatus);
+        if (expectedGeneration !== generation) return false;
+        renderResearch(snapshot);
+        return true;
     } catch (error) {
+        if (expectedGeneration !== generation) return false;
         document.getElementById("research-panel").hidden = false;
         showResearchError(error.message);
+        return false;
     } finally {
-        actionPending = false;
-        updateControls();
-        clearTimeout(researchTimer);
-        researchTimer = setTimeout(pollResearch, 500);
+        if (expectedGeneration === generation) {
+            actionPending = false;
+            updateControls();
+            clearTimeout(researchTimer);
+            researchTimer = setTimeout(pollResearch, 500);
+        }
     }
 }
 
@@ -343,17 +447,34 @@ sourceForm.addEventListener("submit", async event => {
     }
     if (!sourceForm.reportValidity()) return;
     const newSource = document.getElementById("SourceUrl").value.trim();
-    const previousSource = sourceForm.dataset.previousSource;
-    if (previousSource && previousSource !== newSource &&
-        !confirm("Kaynak değişti. Mevcut araştırma yeni kaynakla değiştirilsin mi?")) return;
     const fields = new FormData(sourceForm);
     fields.set("SourceUrl", newSource);
     fields.set("Question", document.getElementById("Question").value.trim());
     document.getElementById("form-feedback").textContent = "";
-    await researchAction("/research/start", fields);
-    if (currentResearch?.isActive) {
-        sourceForm.dataset.previousSource = newSource;
+    if (await researchAction("/research/start", fields, { confirmReplacement: true, expectedStatus: 202 })) {
+        followupQuestion.value = "";
+        updateControls();
         document.getElementById("research-panel").scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+});
+followupQuestion.addEventListener("input", updateControls);
+continuationForm.addEventListener("submit", async event => {
+    event.preventDefault();
+    if (!continuationReady() || !continuationForm.reportValidity()) return;
+    const question = followupQuestion.value.trim();
+    if (!question) return;
+    if (await researchAction("/research/continue",
+        { id: currentResearch.id, question, moreResearch: "false" }, { expectedStatus: 202 })) {
+        followupQuestion.value = "";
+        updateControls();
+        document.getElementById("current-question-section").scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+});
+moreResearchButton.addEventListener("click", async () => {
+    if (!continuationReady()) return;
+    if (await researchAction("/research/continue",
+        { id: currentResearch.id, moreResearch: "true" }, { expectedStatus: 202 })) {
+        document.getElementById("current-question-section").scrollIntoView({ behavior: "smooth", block: "start" });
     }
 });
 stopButton.addEventListener("click", () => {
@@ -367,15 +488,20 @@ function decideHost(approve) {
 document.getElementById("approve-host").addEventListener("click", () => decideHost(true));
 document.getElementById("deny-host").addEventListener("click", () => decideHost(false));
 document.getElementById("reset-form").addEventListener("submit", event => {
-    if (!confirm("Bu araştırma durdurulup geçici durumu silinsin mi?")) {
+    if (actionPending || !confirm("Bu sohbet durdurulup tüm geçmiş, kaynaklar ve site izinleri silinsin mi?")) {
         event.preventDefault();
         return;
     }
     generation++;
+    actionPending = true;
     clearTimeout(researchTimer);
-    event.submitter.disabled = true;
+    updateControls();
 });
 window.addEventListener("pageshow", () => {
+    generation++;
+    actionPending = false;
+    researchLoaded = false;
+    updateControls();
     checkConnection(false);
     pollResearch();
 });

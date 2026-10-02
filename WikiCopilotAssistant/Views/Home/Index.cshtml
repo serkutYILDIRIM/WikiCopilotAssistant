@@ -22,7 +22,7 @@
             <span class="step-number" aria-hidden="true">01</span>
             <div><h2 id="source-title">Kaynağınız ve sorunuz</h2><p>URL yalnızca giriş noktasıdır; aynı sitenin diğer sayfaları da araştırılabilir.</p></div>
         </div>
-        <form action="/research/start" method="post" id="source-form" data-previous-source="@Model.Draft?.SourceUrl">
+        <form action="/research/start" method="post" id="source-form">
             @Html.AntiForgeryToken()
             <div asp-validation-summary="All" class="validation" role="alert"></div>
             <label asp-for="SourceUrl"></label>
@@ -31,7 +31,7 @@
             <label asp-for="Question"></label>
             <textarea asp-for="Question" rows="6" maxlength="8000" required placeholder="useEffect içindeki state güncellemesi neden sonsuz döngüye giriyor?" aria-describedby="question-hint"></textarea>
             <p id="question-hint" class="field-hint">Hata mesajı, kullandığınız sürüm ve denediğiniz adımlar yardımcı olur. Şifre veya anahtar paylaşmayın.</p>
-            <button class="button primary" type="submit" id="prepare-button" disabled>Araştırmayı başlat <span aria-hidden="true">→</span></button>
+            <button class="button primary" type="submit" id="prepare-button" disabled>Yeni sohbet başlat <span aria-hidden="true">→</span></button>
             <p id="form-feedback" role="status" class="field-hint"></p>
         </form>
     </section>
@@ -44,7 +44,7 @@
             <li><strong>Copilot yorumu</strong><span>Modelin çıkarımları ve açıkça belirtilen varsayımları.</span></li>
             <li><strong>Önerilen adımlar</strong><span>Deneyebileceğiniz çözümler ve takip soruları.</span></li>
         </ol>
-        <div class="stage-note"><strong>Kaynakları görün, yorumu ayırt edin</strong><p>Kaynak kimlikleri ve doğrudan alıntılar okunan metinle karşılaştırılır. Bu kontrol, modelin yorumunun doğru olduğunu garanti etmez. Her başlatma yeni bir araştırmadır; takip sohbeti sonraki adımda eklenecek.</p></div>
+        <div class="stage-note"><strong>Kaynakları görün, yorumu ayırt edin</strong><p>Kaynak kimlikleri ve doğrudan alıntılar okunan metinle karşılaştırılır. Bu kontrol, modelin yorumunun doğru olduğunu garanti etmez. Yanıtın altından aynı sohbete devam edebilirsiniz. Yukarıdaki form, aynı URL ile bile geçmişi, kaynakları ve izinleri temizleyen yeni bir sohbet başlatır.</p></div>
     </aside>
 </div>
 
@@ -59,57 +59,84 @@
     <p id="research-message" role="status" aria-live="polite"></p>
     <p id="research-count" class="field-hint"></p>
     <p id="research-error" class="validation" role="alert" hidden></p>
+    <p id="conversation-source" class="source-address"></p>
     <p id="approved-hosts" class="field-hint"></p>
+    <section id="conversation-history" aria-labelledby="history-title" hidden>
+        <h3 id="history-title">Önceki konuşmalar</h3>
+        <div id="conversation-turns"></div>
+    </section>
+    <section id="current-question-section" aria-labelledby="current-question-title" hidden>
+        <h3 id="current-question-title">Şu anki sorunuz</h3>
+        <p id="current-question" class="answer-text"></p>
+        <p id="current-more-research" class="field-hint" hidden>Bu tur, önceki konuşma ve bu sohbette okunan kaynaklardan devam eder.</p>
+    </section>
     <section class="approval-card" id="host-approval" aria-labelledby="approval-title" hidden>
         <h3 id="approval-title">Başka bir site için izniniz gerekiyor</h3>
         <p id="approval-message"></p>
         <p class="approval-host" id="approval-host"></p>
-        <p class="field-hint">Onay yalnızca bu araştırma için geçerlidir. Alt alan adları ayrıca onay ister. Reddetmek, durdurmak veya süreyi geçirmek erişim izni vermez.</p>
+        <p class="field-hint">Onay bu sohbet boyunca, takip sorularında da geçerlidir. Yeni sohbet başlatmak izinleri temizler. Alt alan adları ayrıca onay ister. Reddetmek, durdurmak veya süreyi geçirmek erişim izni vermez.</p>
         <div class="research-actions">
             <button class="button primary" type="button" id="approve-host">Bu siteye izin ver</button>
             <button class="button secondary" type="button" id="deny-host">Reddet</button>
         </div>
     </section>
-    <section id="research-answer" hidden aria-labelledby="answer-title">
-        <h3 id="answer-title">Yanıtınız</h3>
-        <p class="answer-warning" id="validation-note">Kaynak bağlantıları ve alıntılar uygulamanın okuduğu metinlerle eşleştirilir. Bu, iddiaların ve yorumların anlamsal doğruluğu için garanti değildir.</p>
-        <section class="answer-section" aria-labelledby="facts-title">
-            <h4 id="facts-title">Verilen URL'den ulaşılan kaynaklar</h4>
-            <p id="no-source-facts" class="field-hint" hidden>Kaynakla desteklenmiş bir bilgi sunulamadı. Copilot yorumları kaynak gerçeği olarak değerlendirilmemelidir.</p>
-            <div id="source-facts"></div>
-        </section>
-        <section class="answer-section" aria-labelledby="commentary-title">
-            <h4 id="commentary-title">Copilot yorumu</h4>
-            <p class="field-hint">Modelin değerlendirmeleri ve genel bilgisi; kaynakta yazan bilgiyle aynı şey değildir.</p>
-            <div id="model-commentary"></div>
-        </section>
-        <section class="answer-section" aria-labelledby="steps-title">
-            <h4 id="steps-title">Önerilen adımlar</h4>
-            <div id="suggested-steps"></div>
-        </section>
-        <section class="answer-section" id="answer-uncertainties" aria-labelledby="uncertainties-title" hidden>
-            <h4 id="uncertainties-title">Belirsizlikler ve sınırlar</h4>
-            <div id="uncertainties"></div>
-        </section>
-        <section class="answer-section" id="similar-sources-section" aria-labelledby="similar-sources-title" hidden>
-            <h4 id="similar-sources-title">İlgili okunan sayfalar ve benzer sorular</h4>
-            <div id="similar-sources"></div>
-        </section>
-    </section>
+    <section id="research-answer" hidden aria-label="Güncel yanıt"></section>
     <section class="validation-notice" id="answer-validation-errors" role="alert" hidden>
         <h3>Yanıt yayımlanmadı</h3>
         <p>Model yanıtı biçim veya kaynak kontrolünü geçemedi. Aşağıdaki gerçek kaynakları yine de inceleyebilirsiniz.</p>
         <ul id="validation-issues"></ul>
     </section>
     <section class="research-sources" aria-labelledby="sources-title">
-        <h3 id="sources-title">Gerçekten okunan kaynaklar</h3>
-        <p class="field-hint">Kartlarda kısa metin önizlemeleri gösterilir. Kaynağın tamamı için bağlantıyı açabilirsiniz.</p>
+        <h3 id="sources-title">Bu sohbette gerçekten okunan kaynaklar</h3>
+        <p class="field-hint">Önceki turlarda okunan kaynaklar da korunur. Kartlarda kısa metin önizlemeleri gösterilir. Kaynağın tamamı için bağlantıyı açabilirsiniz.</p>
         <p id="no-sources" class="field-hint">Henüz okunmuş kaynak yok. Arama sonuçları tek başına kaynak olarak gösterilmez.</p>
         <div id="source-cards"></div>
     </section>
+    <section id="continuation-section" class="continuation-section" aria-labelledby="continuation-title" hidden>
+        <h3 id="continuation-title">Sohbete devam edin</h3>
+        <p class="field-hint" id="continuation-hint">Takip sorunuz bu sohbetin kaynağı, geçmişi ve izinleriyle araştırılır. “Daha fazla araştır”, yeni soru yazmadan şu anki soruyu ve önceki bağlamı araştırır; alana yazdığınız taslağı göndermez. Şifre, token veya anahtar paylaşmayın.</p>
+        <p id="continuation-message" class="field-hint" role="status" aria-live="polite"></p>
+        <p id="context-capacity" class="field-hint"></p>
+        <form id="continuation-form" action="/research/continue" method="post">
+            <label for="followup-question">Takip sorunuz</label>
+            <textarea id="followup-question" name="question" rows="4" maxlength="8000" required aria-describedby="continuation-hint followup-count continuation-message context-capacity"></textarea>
+            <p id="followup-count" class="field-hint">0 / 8.000 karakter</p>
+            <div class="research-actions">
+                <button id="send-followup" class="button primary" type="submit" disabled>Gönder</button>
+                <button id="more-research" class="button secondary" type="button" disabled>Daha fazla araştır</button>
+            </div>
+        </form>
+    </section>
 </section>
 
-<p class="privacy-note">Yalnızca bu bilgisayarda çalışır. Araştırma durumu RAM'de tutulur; oturum süresi dolunca veya uygulama yeniden başlatıldığında silinir. Sorunuz ve okunan kaynak metinleri Copilot hizmetine gönderilir. Sabit sayfa/çağrı sınırı yoktur; teknik zaman aşımı ve Durdur kontrolü geçerlidir.</p>
+<template id="structured-answer-template">
+    <h3>Yanıtınız</h3>
+    <p class="answer-warning" data-answer="validation-note"></p>
+    <section class="answer-section">
+        <h4>Verilen URL'den ulaşılan kaynaklar</h4>
+        <p data-answer="no-source-facts" class="field-hint" hidden>Kaynakla desteklenmiş bir bilgi sunulamadı. Copilot yorumları kaynak gerçeği olarak değerlendirilmemelidir.</p>
+        <div data-answer="source-facts"></div>
+    </section>
+    <section class="answer-section">
+        <h4>Copilot yorumu</h4>
+        <p class="field-hint">Modelin değerlendirmeleri ve genel bilgisi; kaynakta yazan bilgiyle aynı şey değildir.</p>
+        <div data-answer="model-commentary"></div>
+    </section>
+    <section class="answer-section">
+        <h4>Önerilen adımlar</h4>
+        <div data-answer="suggested-steps"></div>
+    </section>
+    <section class="answer-section" data-answer="answer-uncertainties" hidden>
+        <h4>Belirsizlikler ve sınırlar</h4>
+        <div data-answer="uncertainties"></div>
+    </section>
+    <section class="answer-section" data-answer="similar-sources-section" hidden>
+        <h4>İlgili okunan sayfalar ve benzer sorular</h4>
+        <div data-answer="similar-sources"></div>
+    </section>
+</template>
+
+<p class="privacy-note">Yalnızca bu bilgisayarda çalışır. Sohbet durumu RAM'de tutulur; sayfayı yenileyince geri yüklenir, oturum süresi dolunca veya uygulama yeniden başlatıldığında silinir. Sorunuz, önceki konuşmalar ve okunan kaynak metinleri Copilot hizmetine gönderilir. Devam bağlamı 128.000 karakterle sınırlıdır; sınır aşılırsa geçmiş sessizce kısaltılmaz, yeni sohbet gerekir. Sabit sayfa/çağrı sınırı yoktur; teknik zaman aşımı ve Durdur kontrolü geçerlidir.</p>
 <noscript><p class="validation">Araştırma, site izinleri ve Durdur işlemi için JavaScript gereklidir. Giriş için kendi terminalinizde <code>copilot login</code> çalıştırabilirsiniz.</p></noscript>
 
 <dialog id="login-dialog" aria-labelledby="login-title" aria-describedby="login-description">

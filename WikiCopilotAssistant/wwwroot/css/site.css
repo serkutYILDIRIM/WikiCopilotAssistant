@@ -56,6 +56,15 @@ textarea { resize: vertical; min-height: 140px; }
 .research-panel { margin-top: 24px; scroll-margin-top: 20px; }
 .research-panel h3 { margin: 24px 0 12px; font-size: 18px; }
 .research-actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.conversation-turn { margin: 12px 0; padding: 16px; border: 1px solid var(--line); border-radius: 10px; min-width: 0; }
+.conversation-turn > summary { cursor: pointer; font-weight: 650; white-space: pre-wrap; overflow-wrap: anywhere; }
+.conversation-turn[open] > summary { margin-bottom: 16px; }
+.conversation-turn > .field-hint { white-space: pre-wrap; }
+#current-question-section { margin: 24px 0; padding: 0 18px; border-left: 3px solid var(--accent); scroll-margin-top: 20px; }
+#conversation-source, #approved-hosts, #context-capacity { overflow-wrap: anywhere; }
+.continuation-section { margin-top: 28px; padding-top: 4px; border-top: 1px solid var(--line); }
+#continuation-message { white-space: pre-wrap; }
+#followup-question { min-height: 120px; }
 #research-message { margin-top: 18px; }
 .approval-card { margin: 20px 0; background: #fff7e7; border: 1px solid #e3c58b; border-radius: 10px; padding: 20px; }
 .approval-card h3 { margin-top: 0; }
@@ -107,4 +116,7 @@ code { font-family: ui-monospace, Consolas, monospace; }
     .card { padding: 22px; }
     .connection-panel { align-items: flex-start; flex-direction: column; gap: 12px; }
     .draft-heading { align-items: flex-start; flex-direction: column; }
+    .conversation-turn { padding: 12px; }
+    #current-question-section { padding-left: 12px; padding-right: 0; }
+    #continuation-form .research-actions { align-items: stretch; flex-direction: column; }
 }
