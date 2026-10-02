@@ -39,6 +39,19 @@ public sealed class ResearchController(ResearchService research, ConversationSto
     [HttpGet("/research/status")]
     public IActionResult Status() => Json(research.Status(conversations.Owner));
 
+    [HttpPost("/research/continue")]
+    public IActionResult Continue([FromForm] FollowUpRequest request)
+    {
+        request.Question = request.Question?.Trim();
+        if (!ModelState.IsValid || request.Id == Guid.Empty ||
+            (!request.MoreResearch && string.IsNullOrWhiteSpace(request.Question)))
+            return UnprocessableEntity(new { message = "Geçerli araştırma kimliği ve en fazla 8000 karakterlik bir takip sorusu gerekli." });
+        var result = research.Continue(conversations.Owner, request.Id, request.Question, request.MoreResearch);
+        return result.StatusCode == StatusCodes.Status202Accepted
+            ? StatusCode(result.StatusCode, result.Snapshot)
+            : StatusCode(result.StatusCode, new { message = result.Message });
+    }
+
     [HttpPost("/research/stop")]
     public IActionResult Stop([FromForm] Guid id)
     {
