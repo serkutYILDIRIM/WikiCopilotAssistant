@@ -292,8 +292,10 @@ Source text is supplied inline to Copilot; SDK large-output file offloading is
 disabled so the agent does not need local filesystem tools. Large pages return
 explicitly marked excerpts; an actual section-anchor URL can select a later
 section. Stack Overflow answer pagination is exposed through continuation URLs.
-These capabilities do not yet implement the final citation validator or the
-web interface's cancellation and cross-site approval flows.
+This older diagnostic is only a connectivity/reader check: it does not run the
+final citation validator or the web interface's cancellation and cross-site
+approval flows. The MVC research flow implements those controls and the answer
+checking described above.
 
 The planned application likewise has no fixed research-call count limit.
 User-approved site scope, a Stop action, finite technical timeouts, and
@@ -321,7 +323,9 @@ checks, `--read-timeout-ms <1..180000>` can shorten that deadline.
 
 ## Verified technical scenarios
 
-These were manual checks against the application, not unit tests:
+These were manual checks against the application, not unit tests. The following
+table records the earlier integration milestones; references to drafts describe
+the behavior before structured answer checking was added.
 
 | Scenario | Observed outcome |
 |---|---|
@@ -354,8 +358,35 @@ or a complete security certification. Login/paywall/CAPTCHA content is not
 supported. Browser rendering blocks frames, workers, WebSockets, downloads,
 media and known analytics/font hosts; pages requiring those features may not
 be fully readable. Other script hosts require approval rather than being
-silently loaded. The CLI diagnostic reports that need; the approval UI is
-still planned.
+silently loaded. The CLI diagnostic reports that need; the MVC interface pauses
+for an explicit hostname approval.
+
+### Structured answer acceptance
+
+The structured-answer build was also exercised with the actual Copilot runtime,
+public source reads, browser form submissions, and session-owned HTTP requests:
+
+| Scenario | Observed outcome |
+|---|---|
+| React useEffect research | Completed with four source-backed statements, five matching citations, two separately labeled commentary items, and two suggestions. One correction was needed. |
+| Stack Overflow dependency-array question | Completed with three source-backed statements and five matching citations across a question and two answer permalinks. Citations retained author metadata and CC BY-SA 4.0 attribution; commentary and one suggestion were separate. One correction was needed. |
+| Full evidence versus card previews | Three accepted React quotations came from beyond the 500-character source-card previews. Validation used the captured body, not the preview. |
+| Source unavailable | A real HTTP 404 yielded no source cards or source facts; only labeled model commentary and explicit missing-evidence warnings were published after one correction. |
+| External citation | An example.com read waited for approval from an example.org operation. Its accepted citation, source card, and related-page link were labeled as external; the starting source was not. |
+| Invalid model answer | A Stack Overflow run still contained two nonmatching quotations after its single correction. No answer was published, validation errors were reported, and all 11 successfully read question/answer cards remained available. |
+| Stop during correction | Stopping a real operation in the correction phase produced `cancelled`, completed cleanup, preserved its source card, and published no late answer. |
+| Strict contract diagnostic | Actual-source stdin checks accepted exact and whitespace-normalized quotations. Unknown IDs, fabricated quotations, model URL fields, prose URLs, duplicate properties, null arrays, missing citations, malformed JSON, and an empty answer were rejected. Input exceeding 64,000 characters was rejected before fetching a source. |
+| Browser presentation | Quotations expanded with the keyboard. A 390-pixel viewport had no horizontal overflow. Model-authored HTML-like text remained literal text instead of creating an element. |
+
+Correction is bounded, not a promise that every model response will pass.
+If it fails, inspect the retained source cards or start a new, more focused
+question. A matching quotation still does not establish that the interpretation
+or recommendation is correct.
+
+Immutable URL/content-version keys and the disclosed evidence-memory limits were
+inspected in code. A changing remote document at the same URL and exhaustion of
+the entire evidence-memory budget were not artificially staged. These results
+do not cover contextual follow-up conversation, which remains the next step.
 
 ## Browser privacy boundary
 
