@@ -13,6 +13,9 @@ public static class AnswerValidator
         {"sourceFacts":[{"text":"Kaynağa dayanan açıklama","citations":[{"sourceId":"S1","quote":"Kaynakta gerçekten bulunan kısa alıntı"}]}],"commentary":["Copilot yorumu / model bilgisi: kaynaklarla doğrulanmamış değerlendirme."],"suggestedSteps":[{"text":"Copilot önerisi: yapılabilecek işlem","citations":[]}],"uncertainties":["Kaynakların desteklemediği veya belirsiz kalan konu."],"similarSources":["S1"]}
         Bu örnekteki S1 ve alıntı yer tutucudur; yalnızca sana verilen gerçek kanıt kayıtlarını kullan.
         Gerçek kaynak kimliğini read_source araç yanıtındaki documents öğesinin SourceId (veya sourceId) alanından al.
+        Takip sorusunda sunucunun aktardığı önceki konuşma bağlamındaki sources.sourceId değerleri de gerçek
+        okunmuş kaynak kimlikleridir; önceki eşleşen alıntılar kullanılabilir. Kaynak önizlemesinde veya önceki
+        alıntıda bulunmayan metni uydurma; ihtiyaç varsa kaynağı yeniden oku.
         Bu değeri değiştirmeden, büyük/küçük harflerini koruyarak JSON içindeki sourceId alanına yaz.
         Kimliği URL'den, sıralamadan veya başlıktan türetme; kimliği null/eksik olan belgeyi alıntılama veya similarSources içine ekleme.
         Tüm beş üst düzey dizi zorunludur ve null olamaz; kullanılmayan dizileri [] olarak yaz.
