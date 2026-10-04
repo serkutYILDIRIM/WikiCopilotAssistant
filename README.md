@@ -1,12 +1,12 @@
 # WikiCopilotAssistant
 
-A local ASP.NET Core MVC assistant being developed to research a supplied
-documentation/site URL using GitHub Copilot CLI and answer with clearly
+A local ASP.NET Core MVC assistant that researches a supplied
+documentation/site URL using GitHub Copilot CLI and answers with clearly
 separated sources, model commentary, and suggested next steps.
 
-## Current status
+## What it does
 
-The web research step connects the MVC source/question form to actual Copilot
+The MVC source/question form connects to actual Copilot
 research. It includes progress polling, exact-host approval, Stop, and source
 cards populated only from successfully read documents.
 
@@ -35,6 +35,112 @@ connection check does not establish that web research tools work.
 
 No database, Docker service, or separate frontend installation is required.
 No unit tests or test projects are included.
+
+**Verified platform:** Windows x64 with .NET SDK 10.0.112 and 10.0.401,
+GitHub.Copilot.SDK 1.0.13 and its matching runtime 1.0.83. The SDK permits
+other stable .NET 10 feature bands through `global.json`. macOS, Linux and
+ARM64 have not been verified for this application; do not assume that every
+browser-isolation behavior works identically there.
+
+## Quick start
+
+1. Download/clone this repository and open a terminal in its root folder.
+   Install the prerequisites yourself if missing; see the
+   [official .NET SDK](https://dotnet.microsoft.com/download/dotnet/10.0) and
+   [Copilot CLI installation guide](https://docs.github.com/en/copilot/how-tos/copilot-cli/set-up-copilot-cli/install-copilot-cli).
+2. Sign in through **your own terminal**, not the web application:
+
+   ```powershell
+   copilot login
+   ```
+
+3. **Only if you approve downloading NuGet packages and the matching Copilot
+   runtime**, run these commands in order. Stop if a command fails:
+
+   ```powershell
+   dotnet restore WikiCopilotAssistant.sln
+   dotnet build WikiCopilotAssistant\WikiCopilotAssistant.csproj --no-restore -p:CopilotSkipCliDownload=false
+   ```
+
+   Versions are pinned in the project/SDK. Browser installation is not part of
+   this step: existing Edge is used. The project disables runtime downloading
+   by default; the explicit build flag above enables it for this command only.
+
+4. Start the already-built application:
+
+   ```powershell
+   dotnet run --project WikiCopilotAssistant --no-build --no-restore --launch-profile http
+   ```
+
+   Open **http://localhost:5242**. Later launches need only this command.
+   Use Ctrl+C in the hosting terminal to stop the application.
+
+Enter a public documentation/wiki/question-site URL and your question, then
+choose **Yeni sohbet başlat**. For example, use `https://react.dev/learn` and
+ask why a `useEffect` keeps running, or use `https://stackoverflow.com/questions`
+and describe your React error. Inspect the source quotations separately from
+Copilot's interpretation; answer checking does not prove semantic correctness.
+
+Use **Takip sorunuz** to explain what you tried or ask a follow-up.
+**Daha fazla araştır** continues the same context; **Durdur** cancels the current
+turn. **Yeni sohbet**, or confirming another initial start, clears the old
+conversation and site permissions. A new hostname needs explicit approval.
+Closing a browser tab alone does not cancel an active operation.
+
+### Before sharing or using it
+
+- Your questions, prior context and read source text are sent to Copilot.
+  Use public material only; do not submit passwords, tokens or private documents.
+- Authentication stays with your local Copilot installation. Do not commit
+  credential files, account/subscription details, local environment files or
+  IDE user settings. Never paste raw authentication output into issue reports.
+- In-app conversation state is RAM-only. Restart, reset or expiry removes it.
+  Copilot's own storage/service policies are separate; this is not an offline AI.
+- Research uses your Copilot allowance. Replaying conversation context can
+  increase usage. At 128,000 serialized context characters continuation is still
+  allowed; exceeding it asks for a new conversation instead of silently forgetting.
+- This is a **localhost application**, not a multi-user hosting service.
+  It cannot log in to private wikis or bypass CAPTCHAs, paywalls or access blocks.
+  Run one instance at a time in the same browser: localhost cookies are shared
+  across ports, while each application instance has separate ephemeral keys.
+
+### Common problems
+
+| Symptom | What to do |
+|---|---|
+| .NET SDK is missing or incompatible | Install a stable .NET 10 SDK explicitly; do not change the target to an older framework. |
+| Runtime missing after a build | Complete the approved download/build step, or use the existing-cache build below. A default build deliberately does not download a runtime. |
+| Copilot is not signed in | Run `copilot login` in your terminal, then **Bağlantıyı yeniden kontrol et**. Do not enter credentials into the website. |
+| CLI/SDK format mismatch | Prefer the matching bundled runtime. CLI 1.0.18 was incompatible with SDK 1.0.13; this does not mean your login is invalid. Remove an obsolete `WIKICOPILOT_CLI_PATH` override. |
+| No models, quota, access or connection failure | Check your Copilot access, organization policy and network in your own terminal. The app does not manage subscriptions or show account details. |
+| JavaScript source cannot be read | Confirm Edge is installed and allow only the required hosts. Other browsers are not downloaded automatically. Some restricted/script-heavy pages remain unsupported. |
+| Answer rejected | Inspect the retained real sources and ask a more focused question. Invalid IDs/quotes are not published, even after the single correction attempt. |
+| Context limit reached | Review the existing answers, then start a new conversation. No background summarization or silent history removal occurs. |
+| Local port already in use | Use `dotnet run --project WikiCopilotAssistant --no-build --no-restore --no-launch-profile -- --urls http://localhost:5268` and open that port. Do not expose it on a public interface. |
+
+### Installation verification scope
+
+A separate source copy containing only Git-tracked files was built without
+reusing the original `bin`/`obj` output or copying account files. Its NuGet
+restore used the existing local package cache as its only source, with the
+network-backed NuGet audit disabled for that offline check. The previously
+downloaded **complete runtime bundle**, not just its executable, was placed in
+the copy's runtime cache before the no-download build below.
+
+The clean build completed with zero errors/warnings, the bundled runtime
+recognized the existing local login, and the quick-start run command opened the
+application on port 5242. No extra service, database, browser install or unit-test
+project was needed. Real React and Stack Overflow research produced checked
+source-backed answers from that copy; a follow-up retained the previous answer
+and recalled the user's React version. History opened with the keyboard, and
+the 390-pixel layout had no horizontal overflow.
+
+**An empty-cache internet download was not repeated**:
+the user explicitly chose cache-only validation. Other operating systems and
+every possible website are not covered by these checks.
+
+<details>
+<summary>Detailed setup, diagnostics, manual acceptance results and privacy boundaries</summary>
 
 ## Downloads require an explicit setup action
 
@@ -476,3 +582,5 @@ Windows account has operating-system-level isolation from all of your files.
 - Copilot is an online service, not an offline model. Its own credential
   storage, session files, and synchronization policies are separate from
   the application's in-memory chat history.
+
+</details>
