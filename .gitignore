@@ -3,6 +3,7 @@
 .rider/
 .vs/
 *.sln.iml
+*.csproj.user
 .vscode/
 
 # Build results
